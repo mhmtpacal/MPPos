@@ -11,7 +11,7 @@ final class VakifKatilimAdapter implements PosAdapterInterface
 {
     private VakifKatilim $bank;
 
-    public function __construct(array $config, string $env)
+    public function __construct(array $config, bool $test)
     {
         foreach ([
                      'merchantId',
@@ -27,7 +27,7 @@ final class VakifKatilimAdapter implements PosAdapterInterface
         }
 
         $this->bank = new VakifKatilim(
-            env: $env,
+            test: $test,
             merchantId: (string)$config['merchantId'],
             customerId: (string)$config['customerId'],
             userName: (string)$config['userName'],

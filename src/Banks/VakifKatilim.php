@@ -8,7 +8,7 @@ use MPPos\MPPos;
 
 final class VakifKatilim
 {
-    private string $env;
+    private bool $test;
     private string $merchantId;
     private string $customerId;
     private string $userName;
@@ -17,25 +17,22 @@ final class VakifKatilim
     private string $failUrl;
 
     public function __construct(
-        string $env,
+        bool   $test,
         string $merchantId,
         string $customerId,
         string $userName,
         string $apiPassword,
         string $okUrl,
         string $failUrl
-    ) {
-        if (!in_array($env, [MPPos::ENV_TEST, MPPos::ENV_PROD], true)) {
-            throw new InvalidArgumentException('Invalid env');
-        }
-
-        $this->env         = $env;
-        $this->merchantId  = $merchantId;
-        $this->customerId  = $customerId;
-        $this->userName    = $userName;
+    )
+    {
+        $this->test = $test;
+        $this->merchantId = $merchantId;
+        $this->customerId = $customerId;
+        $this->userName = $userName;
         $this->apiPassword = $apiPassword;
-        $this->okUrl       = $okUrl;
-        $this->failUrl     = $failUrl;
+        $this->okUrl = $okUrl;
+        $this->failUrl = $failUrl;
     }
 
     /* =====================================================
@@ -73,21 +70,21 @@ final class VakifKatilim
             'method' => 'POST',
             'fields' => [
                 // Sistem
-                'MerchantId'       => $this->merchantId,
-                'CustomerId'       => $this->customerId,
-                'UserName'         => $this->userName,
+                'MerchantId' => $this->merchantId,
+                'CustomerId' => $this->customerId,
+                'UserName' => $this->userName,
 
-                'MerchantOrderId'  => $p['orderId'],
-                'Amount'           => $amount,
-                'CurrencyCode'     => '0949',
+                'MerchantOrderId' => $p['orderId'],
+                'Amount' => $amount,
+                'CurrencyCode' => '0949',
 
-                'OkUrl'            => $this->okUrl,
-                'FailUrl'          => $this->failUrl,
+                'OkUrl' => $this->okUrl,
+                'FailUrl' => $this->failUrl,
 
                 'TransactionSecurity' => '3',
-                'InstallmentCount'    => '0',
+                'InstallmentCount' => '0',
 
-                'HashData'         => $hashData,
+                'HashData' => $hashData,
             ]
         ];
     }
@@ -128,7 +125,7 @@ final class VakifKatilim
 
     private function gatewayUrl(): string
     {
-        return $this->env === MPPos::ENV_TEST
+        return $this->test
             ? 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/ThreeDModelPayGate'
             : 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/ThreeDModelPayGate';
     }

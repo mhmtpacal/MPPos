@@ -11,7 +11,7 @@ final class KuveytTurkAdapter implements PosAdapterInterface
 {
     private KuveytTurk $bank;
 
-    public function __construct(array $config, string $env)
+    public function __construct(array $config, bool $test)
     {
         foreach (['merchantId', 'username', 'password', 'customerId'] as $k) {
             if (empty($config[$k])) {
@@ -20,7 +20,7 @@ final class KuveytTurkAdapter implements PosAdapterInterface
         }
 
         $this->bank = new KuveytTurk(
-            env: $env,
+            test: $test,
             merchantId: $config['merchantId'],
             username: $config['username'],
             password: $config['password'],

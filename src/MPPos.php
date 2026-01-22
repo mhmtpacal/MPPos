@@ -11,26 +11,20 @@ use BadMethodCallException;
 
 final class MPPos
 {
-    public const ENV_TEST = 'test';
-    public const ENV_PROD = 'prod';
-
-    public const KUVEYT_TURK   = 'kuveytturk';
+    public const KUVEYT_TURK = 'kuveytturk';
     public const VAKIF_KATILIM = 'vakifkatilim';
 
     private PosAdapterInterface $adapter;
 
     public function __construct(
         string $bank,
-        string $env,
-        array $config
-    ) {
-        if (!in_array($env, [self::ENV_TEST, self::ENV_PROD], true)) {
-            throw new PosException('Invalid env');
-        }
-
+        bool   $test,
+        array  $config
+    )
+    {
         $this->adapter = match ($bank) {
-            self::KUVEYT_TURK   => new KuveytTurkAdapter($config, $env),
-            self::VAKIF_KATILIM => new VakifKatilimAdapter($config, $env),
+            self::KUVEYT_TURK => new KuveytTurkAdapter($config, $test),
+            self::VAKIF_KATILIM => new VakifKatilimAdapter($config, $test),
             default => throw new PosException("Unsupported bank: {$bank}")
         };
     }
@@ -59,33 +53,12 @@ final class MPPos
         throw new BadMethodCallException("Undefined method: {$name}");
     }
 
-    public static function createPayment(array $payload, string $env): array
+    public static function createPayment(string $bank, array $payload, bool $test): array
     {
-        $bank = $payload['bankAdapter'] ?? null;
-        if ($bank === null || $bank === '') {
-            throw new PosException('Missing bankAdapter');
-        }
-
-        unset($payload['bankAdapter']);
-        $bank = self::normalizeBankAdapter((string)$bank);
-
         [$config, $params] = self::splitConfigAndParams($bank, $payload);
 
-        $pos = new self($bank, $env, $config);
+        $pos = new self($bank, $test, $config);
         return $pos->createPaymentWithAdapter($params);
-    }
-
-    private static function normalizeBankAdapter(string $bank): string
-    {
-        return match ($bank) {
-            self::KUVEYT_TURK,
-            self::VAKIF_KATILIM => $bank,
-            'KuveytTurkAdapter',
-            'MPPos\\Adapters\\KuveytTurkAdapter' => self::KUVEYT_TURK,
-            'VakifKatilimAdapter',
-            'MPPos\\Adapters\\VakifKatilimAdapter' => self::VAKIF_KATILIM,
-            default => throw new PosException("Unsupported bankAdapter: {$bank}")
-        };
     }
 
     private static function splitConfigAndParams(string $bank, array $payload): array
