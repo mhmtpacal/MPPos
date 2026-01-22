@@ -35,6 +35,7 @@ final class KuveytTurk implements BankClientInterface
     public function securePaymentRegister(array $bankPayload): array
     {
         $bankPayload['MerchantId'] = $this->merchantId;
+        $bankPayload['CustomerId'] = $this->customerId;
         $bankPayload['UserName']   = $this->username;
         $bankPayload['HashData']   = $this->hashDataForRegister(
             (string)($bankPayload['MerchantOrderId'] ?? ''),

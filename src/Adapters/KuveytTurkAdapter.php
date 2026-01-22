@@ -80,7 +80,8 @@ final class KuveytTurkAdapter implements PosAdapterInterface
         if ($token === '') {
             // bazı ortamlarda register cevap formatı farklı olabilir.
             // raw döndürüp debug edebilmen için PosException fırlatıyorum.
-            throw new PosException('Token could not be parsed from SecurePaymentRegister response');
+            $keys = implode(',', array_keys($registerLike));
+            throw new PosException("Token could not be parsed from SecurePaymentRegister response (responseKeys={$keys})");
         }
 
         // UI’ya en temiz yol token ile yönlendirme:
@@ -113,7 +114,9 @@ final class KuveytTurkAdapter implements PosAdapterInterface
 
         $token = Arr::pick($raw, ['Token', 'Data.Token', 'Result.Token'], '');
         if ($token === '') {
-            throw new PosException('Token could not be parsed');
+            // Include raw response keys to help debug integration issues.
+            $keys = implode(',', array_keys($raw));
+            throw new PosException("Token could not be parsed (responseKeys={$keys})");
         }
 
         return [
