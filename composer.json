@@ -1,0 +1,14 @@
+{
+  "name": "mpyazilim/mppos",
+  "description": "Unified Turkish Bank POS Gateway (Kuveyt Turk, Vakif Katilim, etc.)",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "MPPos\\": "src/"
+    }
+  },
+  "require": {
+    "php": ">=8.1"
+  }
+}
