@@ -5,6 +5,7 @@ namespace MPPos\Banks;
 
 use InvalidArgumentException;
 use MPPos\MPPos;
+use RuntimeException;
 
 final class VakifKatilim
 {
@@ -98,6 +99,39 @@ final class VakifKatilim
     }
 
     /* =====================================================
+     * CANCEL / REFUND
+     * ===================================================== */
+
+    public function cancel(string $orderId, string $merchantOrderId): array
+    {
+        return $this->postForm($this->endpointSaleReversal(), $this->buildReversalPayload(
+            orderId: $orderId,
+            merchantOrderId: $merchantOrderId,
+            amount: '0'
+        ));
+    }
+
+    public function refundFull(string $orderId, string $merchantOrderId): array
+    {
+        return $this->postForm($this->endpointDrawBack(), $this->buildReversalPayload(
+            orderId: $orderId,
+            merchantOrderId: $merchantOrderId,
+            amount: '0'
+        ));
+    }
+
+    public function refundPartial(string $orderId, string $merchantOrderId, string|int|float $amount): array
+    {
+        $amount = $this->formatAmount($amount);
+
+        return $this->postForm($this->endpointPartialDrawBack(), $this->buildReversalPayload(
+            orderId: $orderId,
+            merchantOrderId: $merchantOrderId,
+            amount: $amount
+        ));
+    }
+
+    /* =====================================================
      * HASH (PDF BİREBİR)
      * ===================================================== */
 
@@ -108,6 +142,35 @@ final class VakifKatilim
     {
         $data = mb_convert_encoding($data, 'ISO-8859-9', 'UTF-8');
         return base64_encode(sha1($data, true));
+    }
+
+    /**
+     * Common reversal payload used by SaleReversal/DrawBack/PartialDrawBack.
+     *
+     * Note: Vakif Katilim documents vary by integration; if the bank requires
+     * different field names, adjust here in one place.
+     *
+     * @return array<string, string>
+     */
+    private function buildReversalPayload(string $orderId, string $merchantOrderId, string $amount): array
+    {
+        $hashPassword = $this->computeHash($this->apiPassword);
+
+        // Pattern is aligned with other Vakif Katilim hash samples:
+        // MerchantId + MerchantOrderId + Amount + UserName + Hash(Password)
+        $hashString = $this->merchantId . $merchantOrderId . $amount . $this->userName . $hashPassword;
+        $hashData = $this->computeHash($hashString);
+
+        return [
+            'MerchantId' => $this->merchantId,
+            'CustomerId' => $this->customerId,
+            'UserName' => $this->userName,
+            'HashData' => $hashData,
+            'OrderId' => $orderId,
+            'MerchantOrderId' => $merchantOrderId,
+            'Amount' => $amount,
+            'CurrencyCode' => '0949',
+        ];
     }
 
     /* =====================================================
@@ -136,6 +199,55 @@ final class VakifKatilim
         return $this->env === MPPos::ENV_TEST
             ? 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/ThreeDModelPayGate'
             : 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/ThreeDModelPayGate';
+    }
+
+    private function endpointSaleReversal(): string
+    {
+        return $this->env === MPPos::ENV_TEST
+            ? 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/SaleReversal'
+            : 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/SaleReversal';
+    }
+
+    private function endpointDrawBack(): string
+    {
+        // PDF link showed "/DrawBacke" (sic). Keep as-is.
+        return $this->env === MPPos::ENV_TEST
+            ? 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/DrawBacke'
+            : 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/DrawBacke';
+    }
+
+    private function endpointPartialDrawBack(): string
+    {
+        return $this->env === MPPos::ENV_TEST
+            ? 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/PartialDrawBack'
+            : 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/PartialDrawBack';
+    }
+
+    /**
+     * @param array<string, string> $fields
+     */
+    private function postForm(string $url, array $fields): array
+    {
+        $ch = curl_init($url);
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query($fields),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        ]);
+
+        $resp = curl_exec($ch);
+        if ($resp === false) {
+            throw new RuntimeException(curl_error($ch));
+        }
+
+        curl_close($ch);
+
+        $decoded = json_decode($resp, true);
+        return is_array($decoded) ? $decoded : ['raw' => $resp];
     }
 
     private function requireFields(array $data, array $fields): void

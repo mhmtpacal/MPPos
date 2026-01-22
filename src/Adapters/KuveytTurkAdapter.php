@@ -36,6 +36,21 @@ final class KuveytTurkAdapter implements PosAdapterInterface
         return $this->bank->buildMerchantUiPayload($params);
     }
 
+    public function cancel(string $orderId, string $merchantOrderId): array
+    {
+        return $this->bank->cancel($orderId, $merchantOrderId);
+    }
+
+    public function refundFull(string $orderId, string $merchantOrderId): array
+    {
+        return $this->bank->refundFull($orderId, $merchantOrderId);
+    }
+
+    public function refundPartial(string $orderId, string $merchantOrderId, string|int|float $amount): array
+    {
+        return $this->bank->refundPartial($orderId, $merchantOrderId, $amount);
+    }
+
     public function verifyCallback(array $data): bool
     {
         // Kuveyt Türk: hash + ResponseCode kontrolü

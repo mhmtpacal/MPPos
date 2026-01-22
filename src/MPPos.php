@@ -60,6 +60,21 @@ final class MPPos
         return $this->adapter->createPayment($params);
     }
 
+    public function cancelWithAdapter(string $orderId, string $merchantOrderId): array
+    {
+        return $this->adapter->cancel($orderId, $merchantOrderId);
+    }
+
+    public function refundFullWithAdapter(string $orderId, string $merchantOrderId): array
+    {
+        return $this->adapter->refundFull($orderId, $merchantOrderId);
+    }
+
+    public function refundPartialWithAdapter(string $orderId, string $merchantOrderId, string|int|float $amount): array
+    {
+        return $this->adapter->refundPartial($orderId, $merchantOrderId, $amount);
+    }
+
     public function verifyCallback(array $data): bool
     {
         return $this->adapter->verifyCallback($data);
@@ -74,6 +89,15 @@ final class MPPos
     {
         if ($name === 'createPayment') {
             return $this->createPaymentWithAdapter(...$arguments);
+        }
+        if ($name === 'cancel') {
+            return $this->cancelWithAdapter(...$arguments);
+        }
+        if ($name === 'refundFull') {
+            return $this->refundFullWithAdapter(...$arguments);
+        }
+        if ($name === 'refundPartial') {
+            return $this->refundPartialWithAdapter(...$arguments);
         }
 
         throw new BadMethodCallException("Undefined method: {$name}");
@@ -99,6 +123,76 @@ final class MPPos
             ]);
             // Ensure callers get a typed exception and we keep the original stacktrace.
             throw new PosException("MPPos createPayment failed (eventId={$eventId}): " . $e->getMessage(), previous: $e);
+        }
+    }
+
+    public static function cancel(string $bank, array $payload, string|bool $env): array
+    {
+        $env = self::normalizeEnv($env);
+        [$config, $params] = self::splitConfigAndParams($bank, $payload);
+        self::requireKeys($params, ['orderId', 'merchantOrderId']);
+
+        try {
+            $pos = new self($bank, $env, $config);
+            return $pos->cancelWithAdapter((string)$params['orderId'], (string)$params['merchantOrderId']);
+        } catch (\Throwable $e) {
+            $eventId = self::newEventId();
+            self::logger()->log('error', 'MPPos cancel failed', [
+                'eventId' => $eventId,
+                'bank' => $bank,
+                'env' => $env,
+                'payload' => self::redact($payload),
+                'exception' => self::exceptionToArray($e, includeTrace: true),
+            ]);
+            throw new PosException("MPPos cancel failed (eventId={$eventId}): " . $e->getMessage(), previous: $e);
+        }
+    }
+
+    public static function refundFull(string $bank, array $payload, string|bool $env): array
+    {
+        $env = self::normalizeEnv($env);
+        [$config, $params] = self::splitConfigAndParams($bank, $payload);
+        self::requireKeys($params, ['orderId', 'merchantOrderId']);
+
+        try {
+            $pos = new self($bank, $env, $config);
+            return $pos->refundFullWithAdapter((string)$params['orderId'], (string)$params['merchantOrderId']);
+        } catch (\Throwable $e) {
+            $eventId = self::newEventId();
+            self::logger()->log('error', 'MPPos refundFull failed', [
+                'eventId' => $eventId,
+                'bank' => $bank,
+                'env' => $env,
+                'payload' => self::redact($payload),
+                'exception' => self::exceptionToArray($e, includeTrace: true),
+            ]);
+            throw new PosException("MPPos refundFull failed (eventId={$eventId}): " . $e->getMessage(), previous: $e);
+        }
+    }
+
+    public static function refundPartial(string $bank, array $payload, string|bool $env): array
+    {
+        $env = self::normalizeEnv($env);
+        [$config, $params] = self::splitConfigAndParams($bank, $payload);
+        self::requireKeys($params, ['orderId', 'merchantOrderId', 'amount']);
+
+        try {
+            $pos = new self($bank, $env, $config);
+            return $pos->refundPartialWithAdapter(
+                (string)$params['orderId'],
+                (string)$params['merchantOrderId'],
+                $params['amount']
+            );
+        } catch (\Throwable $e) {
+            $eventId = self::newEventId();
+            self::logger()->log('error', 'MPPos refundPartial failed', [
+                'eventId' => $eventId,
+                'bank' => $bank,
+                'env' => $env,
+                'payload' => self::redact($payload),
+                'exception' => self::exceptionToArray($e, includeTrace: true),
+            ]);
+            throw new PosException("MPPos refundPartial failed (eventId={$eventId}): " . $e->getMessage(), previous: $e);
         }
     }
 
@@ -194,5 +288,18 @@ final class MPPos
         }
 
         return [$config, $params];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @param list<string> $keys
+     */
+    private static function requireKeys(array $data, array $keys): void
+    {
+        foreach ($keys as $k) {
+            if (!array_key_exists($k, $data) || $data[$k] === '' || $data[$k] === null) {
+                throw new PosException("Missing parameter: {$k}");
+            }
+        }
     }
 }

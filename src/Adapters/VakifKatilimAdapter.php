@@ -16,12 +16,7 @@ final class VakifKatilimAdapter implements PosAdapterInterface
     {
         $env = is_bool($env) ? ($env ? MPPos::ENV_TEST : MPPos::ENV_PROD) : $env;
 
-        foreach ([
-                     'merchantId',
-                     'customerId',
-                     'userName',
-                     'password'
-                 ] as $k) {
+        foreach (['merchantId', 'customerId', 'userName', 'password'] as $k) {
             if (empty($config[$k])) {
                 throw new PosException("VakifKatilim config missing: {$k}");
             }
@@ -49,6 +44,33 @@ final class VakifKatilimAdapter implements PosAdapterInterface
                 'VakifKatilim createPayment failed: ' . $e->getMessage(),
                 previous: $e
             );
+        }
+    }
+
+    public function cancel(string $orderId, string $merchantOrderId): array
+    {
+        try {
+            return $this->bank->cancel($orderId, $merchantOrderId);
+        } catch (\Throwable $e) {
+            throw new PosException('VakifKatilim cancel failed: ' . $e->getMessage(), previous: $e);
+        }
+    }
+
+    public function refundFull(string $orderId, string $merchantOrderId): array
+    {
+        try {
+            return $this->bank->refundFull($orderId, $merchantOrderId);
+        } catch (\Throwable $e) {
+            throw new PosException('VakifKatilim refundFull failed: ' . $e->getMessage(), previous: $e);
+        }
+    }
+
+    public function refundPartial(string $orderId, string $merchantOrderId, string|int|float $amount): array
+    {
+        try {
+            return $this->bank->refundPartial($orderId, $merchantOrderId, $amount);
+        } catch (\Throwable $e) {
+            throw new PosException('VakifKatilim refundPartial failed: ' . $e->getMessage(), previous: $e);
         }
     }
 

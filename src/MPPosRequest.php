@@ -58,6 +58,42 @@ final class MPPosRequest
         return MPPos::createPayment($this->bank, $this->payload, $this->env);
     }
 
+    public function cancel(): array
+    {
+        if ($this->bank === null || $this->bank === '') {
+            throw new PosException('Missing bank');
+        }
+        if ($this->env === null) {
+            throw new PosException('Missing env/test');
+        }
+
+        return MPPos::cancel($this->bank, $this->payload, $this->env);
+    }
+
+    public function refundFull(): array
+    {
+        if ($this->bank === null || $this->bank === '') {
+            throw new PosException('Missing bank');
+        }
+        if ($this->env === null) {
+            throw new PosException('Missing env/test');
+        }
+
+        return MPPos::refundFull($this->bank, $this->payload, $this->env);
+    }
+
+    public function refundPartial(): array
+    {
+        if ($this->bank === null || $this->bank === '') {
+            throw new PosException('Missing bank');
+        }
+        if ($this->env === null) {
+            throw new PosException('Missing env/test');
+        }
+
+        return MPPos::refundPartial($this->bank, $this->payload, $this->env);
+    }
+
     /**
      * Allow property-style usage requested by user:
      *   $req->setBank = MPPos::VAKIF_KATILIM;
@@ -75,4 +111,3 @@ final class MPPosRequest
         };
     }
 }
-
