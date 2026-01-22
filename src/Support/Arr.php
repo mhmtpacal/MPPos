@@ -9,8 +9,16 @@ final class Arr
     {
         foreach ($keys as $k) {
             $v = self::getPath($arr, $k);
-            if (is_string($v) && $v !== '') {
-                return $v;
+            if (is_string($v)) {
+                $v = trim($v);
+                if ($v !== '') return $v;
+                continue;
+            }
+
+            // Some bank responses return scalar tokens/ids not strictly typed as string.
+            if (is_int($v) || is_float($v) || is_bool($v)) {
+                $s = (string)$v;
+                if ($s !== '') return $s;
             }
         }
         return $default;

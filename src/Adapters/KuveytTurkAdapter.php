@@ -114,7 +114,11 @@ final class KuveytTurkAdapter implements PosAdapterInterface
         if ($token === '') {
             // Include raw response keys to help debug integration issues.
             $keys = implode(',', array_keys($raw));
-            throw new PosException("Token could not be parsed (responseKeys={$keys})");
+            $rc = (string)($raw['ResponseCode'] ?? '');
+            $rm = (string)($raw['ResponseMessage'] ?? '');
+            $success = isset($raw['Success']) ? (string)$raw['Success'] : '';
+            $bkType = array_key_exists('BusinessKey', $raw) ? gettype($raw['BusinessKey']) : '';
+            throw new PosException("Token could not be parsed (responseKeys={$keys}, ResponseCode={$rc}, Success={$success}, BusinessKeyType={$bkType}, ResponseMessage={$rm})");
         }
 
         return [
