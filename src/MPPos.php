@@ -274,7 +274,8 @@ final class MPPos
     private static function splitConfigAndParams(string $bank, array $payload): array
     {
         $configKeys = match ($bank) {
-            self::KUVEYT_TURK => ['merchantId', 'customerId', 'username', 'password'],
+            // Back-compat: allow both `username` and `userName` for Kuveyt Turk.
+            self::KUVEYT_TURK => ['merchantId', 'customerId', 'username', 'userName', 'password'],
             self::VAKIF_KATILIM => ['merchantId', 'customerId', 'userName', 'password'],
             default => throw new PosException("Unsupported bank: {$bank}")
         };

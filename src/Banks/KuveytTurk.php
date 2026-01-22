@@ -181,11 +181,12 @@ final class KuveytTurk
             'SaleReversalType' => $type,
             'OrderId'          => $orderId,
             'MerchantOrderId'  => $merchantOrderId,
-            'merchantId'       => $this->merchantId,
-            'customerId'       => $this->customerId,
-            'username'         => $this->username,
-            'hashData'         => $hashData,
-            'amount'           => $amount ?? '0',
+            // Keep field naming consistent with other Kuveyt Turk endpoints (e.g. SecurePaymentRegister).
+            'MerchantId'       => $this->merchantId,
+            'CustomerId'       => $this->customerId,
+            'UserName'         => $this->username,
+            'HashData'         => $hashData,
+            'Amount'           => $amount ?? '0',
         ]);
     }
 

@@ -16,16 +16,22 @@ final class KuveytTurkAdapter implements PosAdapterInterface
     {
         $env = is_bool($env) ? ($env ? MPPos::ENV_TEST : MPPos::ENV_PROD) : $env;
 
-        foreach (['merchantId', 'userName', 'password', 'customerId'] as $k) {
+        foreach (['merchantId', 'customerId', 'password'] as $k) {
             if (empty($config[$k])) {
                 throw new PosException("KuveytTurk config missing: {$k}");
             }
         }
 
+        // Accept both `username` and `userName` (common mismatch across integrations).
+        $username = (string)($config['username'] ?? $config['userName'] ?? '');
+        if ($username === '') {
+            throw new PosException('KuveytTurk config missing: username');
+        }
+
         $this->bank = new KuveytTurk(
             env: $env,
             merchantId: $config['merchantId'],
-            username: $config['userName'],
+            username: $username,
             password: $config['password'],
             customerId: $config['customerId']
         );
