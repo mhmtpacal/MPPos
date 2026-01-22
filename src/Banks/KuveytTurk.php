@@ -3,36 +3,27 @@ declare(strict_types=1);
 
 namespace MPPos\Banks;
 
-use RuntimeException;
-use InvalidArgumentException;
+use MPPos\Contracts\BankClientInterface;
+use MPPos\Exceptions\BankException;
 use MPPos\MPPos;
+use MPPos\Support\Arr;
 
-final class KuveytTurk
+final class KuveytTurk implements BankClientInterface
 {
-    private string $env;
-    private string $merchantId;
-    private string $username;
-    private string $password;
-    private string $customerId;
     private int $timeoutSeconds = 20;
 
     public function __construct(
-        string $env,
-        string $merchantId,
-        string $username,
-        string $password,
-        string $customerId
+        private string $env,
+        private string $merchantId,
+        private string $username,
+        private string $password,
+        private string $customerId
     ) {
         $env = strtolower(trim($env));
         if (!in_array($env, [MPPos::ENV_TEST, MPPos::ENV_PROD], true)) {
-            throw new InvalidArgumentException('Invalid env');
+            throw new BankException('Invalid env');
         }
-
-        $this->env        = $env;
-        $this->merchantId = $merchantId;
-        $this->username   = $username;
-        $this->password   = $password;
-        $this->customerId = $customerId;
+        $this->env = $env;
     }
 
     public function setTimeoutSeconds(int $seconds): self
@@ -41,67 +32,33 @@ final class KuveytTurk
         return $this;
     }
 
-    /* =========================================================
-     * A) HOSTED / TOKEN
-     * ========================================================= */
-
-    public function register(array $p): array
+    public function securePaymentRegister(array $bankPayload): array
     {
-        $this->assertRequired($p, [
-            'merchantOrderId', 'amount', 'successUrl', 'failUrl', 'cardHolderIp', 'email'
-        ]);
-
-        if (!empty($p['installmentCount']) && !empty($p['deferringCount'])) {
-            throw new InvalidArgumentException('installmentCount and deferringCount cannot be sent together.');
-        }
-
-        $amount       = $this->normalizeAmount($p['amount']);
-        $currencyCode = $p['currencyCode'] ?? '0949';
-        $language     = $p['language'] ?? 'TR';
-
-        $hashData = $this->hashDataForRegister(
-            (string)$p['merchantOrderId'],
-            $amount,
-            (string)$p['successUrl'],
-            (string)$p['failUrl']
+        $bankPayload['MerchantId'] = $this->merchantId;
+        $bankPayload['UserName']   = $this->username;
+        $bankPayload['HashData']   = $this->hashDataForRegister(
+            (string)($bankPayload['MerchantOrderId'] ?? ''),
+            (string)($bankPayload['Amount'] ?? '0'),
+            (string)($bankPayload['SuccessUrl'] ?? ''),
+            (string)($bankPayload['FailUrl'] ?? '')
         );
 
-        $payload = [
-            'HashData'        => $hashData,
-            'MerchantId'      => $this->merchantId,
-            'UserName'        => $this->username,
-            'TransactionType' => 'Sale',
-            'TokenType'       => 'SecureCommonPayment',
-            'SuccessUrl'      => (string)$p['successUrl'],
-            'FailUrl'         => (string)$p['failUrl'],
-            'Amount'          => $amount,
-            'CurrencyCode'    => $currencyCode,
-            'CardHolderIP'    => (string)$p['cardHolderIp'],
-            'MerchantOrderId' => (string)$p['merchantOrderId'],
-            'Email'           => (string)$p['email'],
-            'Language'        => $language,
-        ];
+        return $this->postJson($this->endpointSecurePaymentRegister(), $bankPayload);
+    }
 
-        if (!empty($p['installmentCount'])) {
-            $payload['InstallmentCount'] = (string)(int)$p['installmentCount'];
-        }
+    public function saleReversal(array $bankPayload): array
+    {
+        // Required injection
+        $bankPayload['MerchantId'] = $this->merchantId;
+        $bankPayload['CustomerId'] = $this->customerId;
+        $bankPayload['UserName']   = $this->username;
 
-        if (!empty($p['deferringCount'])) {
-            $payload['DeferringCount'] = (string)(int)$p['deferringCount'];
-        }
+        $merchantOrderId = (string)($bankPayload['MerchantOrderId'] ?? '');
+        $amount          = (string)($bankPayload['Amount'] ?? '0');
 
-        $raw = $this->postJson($this->endpointSecurePaymentRegister(), $payload);
+        $bankPayload['HashData'] = $this->hashDataForSaleReversal($merchantOrderId, $amount);
 
-        $token = $this->pickFirstString($raw, ['Token', 'Data.Token', 'Result.Token']);
-        if ($token === '') {
-            throw new RuntimeException('Token could not be parsed');
-        }
-
-        return [
-            'token'       => $token,
-            'redirectUrl' => $this->securePaymentUiUrl($token),
-            'raw'         => $raw,
-        ];
+        return $this->postJson($this->endpointSaleReversal(), $bankPayload);
     }
 
     public function securePaymentUiUrl(string $token): string
@@ -109,90 +66,7 @@ final class KuveytTurk
         return $this->endpointSecurePaymentUiBase() . '?Token=' . rawurlencode($token);
     }
 
-    /* =========================================================
-     * B) MERCHANT UI
-     * ========================================================= */
-
-    public function buildMerchantUiPayload(array $p): array
-    {
-        $this->assertRequired($p, [
-            'merchantOrderId', 'amount', 'successUrl', 'failUrl', 'cardHolderIp', 'email'
-        ]);
-
-        $amount   = $this->normalizeAmount($p['amount']);
-        $language = $p['language'] ?? 'TR';
-
-        $hashData = $this->hashDataForRegister(
-            (string)$p['merchantOrderId'],
-            $amount,
-            (string)$p['successUrl'],
-            (string)$p['failUrl']
-        );
-
-        return [
-            'action' => $this->endpointSecurePaymentUiBase(),
-            'method' => 'POST',
-            'fields' => [
-                'HashData'        => $hashData,
-                'MerchantId'      => $this->merchantId,
-                'UserName'        => $this->username,
-                'TransactionType' => 'Sale',
-                'SuccessUrl'      => $p['successUrl'],
-                'FailUrl'         => $p['failUrl'],
-                'Amount'          => $amount,
-                'CurrencyCode'    => '0949',
-                'CardHolderIP'    => $p['cardHolderIp'],
-                'MerchantOrderId' => $p['merchantOrderId'],
-                'Email'           => $p['email'],
-                'Language'        => $language,
-            ]
-        ];
-    }
-
-    /* =========================================================
-     * İPTAL / İADE
-     * ========================================================= */
-
-    public function cancel(string $orderId, string $merchantOrderId): array
-    {
-        return $this->saleReversal('Cancel', $orderId, $merchantOrderId, null);
-    }
-
-    public function refundFull(string $orderId, string $merchantOrderId): array
-    {
-        return $this->saleReversal('Drawback', $orderId, $merchantOrderId, null);
-    }
-
-    public function refundPartial(string $orderId, string $merchantOrderId, string|int|float $amount): array
-    {
-        return $this->saleReversal(
-            'PartialDrawback',
-            $orderId,
-            $merchantOrderId,
-            $this->normalizeAmount($amount)
-        );
-    }
-
-    private function saleReversal(string $type, string $orderId, string $merchantOrderId, ?string $amount): array
-    {
-        $hashData = $this->hashDataForSaleReversal($merchantOrderId, $amount ?? '0');
-
-        return $this->postJson($this->endpointSaleReversal(), [
-            'SaleReversalType' => $type,
-            'OrderId'          => $orderId,
-            'MerchantOrderId'  => $merchantOrderId,
-            // Keep field naming consistent with other Kuveyt Turk endpoints (e.g. SecurePaymentRegister).
-            'MerchantId'       => $this->merchantId,
-            'CustomerId'       => $this->customerId,
-            'UserName'         => $this->username,
-            'HashData'         => $hashData,
-            'Amount'           => $amount ?? '0',
-        ]);
-    }
-
-    /* =========================================================
-     * HASH
-     * ========================================================= */
+    /* ===================== HASH ===================== */
 
     private function hashPassword(string $password): string
     {
@@ -207,24 +81,19 @@ final class KuveytTurk
     private function hashDataForRegister(string $merchantOrderId, string $amount, string $successUrl, string $failUrl): string
     {
         $hp = $this->hashPassword($this->password);
-        return $this->computeHash(
-            $this->merchantId . $merchantOrderId . $amount . $successUrl . $failUrl . $this->username . $hp,
-            $hp
-        );
+        $hashStr = $this->merchantId . $merchantOrderId . $amount . $successUrl . $failUrl . $this->username . $hp;
+        return $this->computeHash($hashStr, $hp);
     }
 
     private function hashDataForSaleReversal(string $merchantOrderId, string $amount): string
     {
+        // Cancel/Drawback: amount must be 0, PartialDrawback: include amount
         $hp = $this->hashPassword($this->password);
-        return $this->computeHash(
-            $this->merchantId . $merchantOrderId . $amount . $this->username . $hp,
-            $hp
-        );
+        $hashStr = $this->merchantId . $merchantOrderId . $amount . $this->username . $hp;
+        return $this->computeHash($hashStr, $hp);
     }
 
-    /* =========================================================
-     * HTTP
-     * ========================================================= */
+    /* ===================== HTTP ===================== */
 
     private function postJson(string $url, array $payload): array
     {
@@ -233,7 +102,7 @@ final class KuveytTurk
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_SLASHES),
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             CURLOPT_TIMEOUT        => $this->timeoutSeconds,
             CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
@@ -241,16 +110,23 @@ final class KuveytTurk
 
         $resp = curl_exec($ch);
         if ($resp === false) {
-            throw new RuntimeException(curl_error($ch));
+            throw new BankException('cURL error: ' . curl_error($ch));
         }
 
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-        return json_decode($resp, true) ?? [];
+
+        $decoded = json_decode($resp, true);
+        if (!is_array($decoded)) $decoded = ['raw' => $resp];
+
+        if ($httpCode >= 400) {
+            throw new BankException("HTTP {$httpCode} response", $httpCode);
+        }
+
+        return $decoded;
     }
 
-    /* =========================================================
-     * ENDPOINTS
-     * ========================================================= */
+    /* ===================== ENDPOINTS ===================== */
 
     private function endpointSecurePaymentRegister(): string
     {
@@ -271,46 +147,5 @@ final class KuveytTurk
         return $this->env === MPPos::ENV_TEST
             ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/KTPay/SaleReversal'
             : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/KTPay/SaleReversal';
-    }
-
-    /* =========================================================
-     * HELPERS
-     * ========================================================= */
-
-    private function normalizeAmount(string|int|float $amount): string
-    {
-        if (is_int($amount)) return (string)$amount;
-
-        $s = str_replace(['₺','TL',' '], '', (string)$amount);
-        $s = str_replace('.', '', $s);
-        $s = str_replace(',', '.', $s);
-
-        if (!is_numeric($s)) {
-            throw new InvalidArgumentException('Invalid amount');
-        }
-
-        return (string)(int)round((float)$s * 100);
-    }
-
-    private function assertRequired(array $p, array $keys): void
-    {
-        foreach ($keys as $k) {
-            if (empty($p[$k])) {
-                throw new InvalidArgumentException("Missing parameter: {$k}");
-            }
-        }
-    }
-
-    private function pickFirstString(array $arr, array $paths): string
-    {
-        foreach ($paths as $path) {
-            $v = $arr;
-            foreach (explode('.', $path) as $p) {
-                if (!isset($v[$p])) continue 2;
-                $v = $v[$p];
-            }
-            if (is_string($v) && $v !== '') return $v;
-        }
-        return '';
     }
 }

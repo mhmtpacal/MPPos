@@ -3,4 +3,4 @@ declare(strict_types=1);
 
 namespace MPPos\Exceptions;
 
-class PosException extends \RuntimeException {}
+final class BankException extends PosException {}
