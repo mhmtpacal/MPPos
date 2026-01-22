@@ -22,9 +22,11 @@ final class MPPos
     private PosAdapterInterface $adapter;
     private static LoggerInterface $logger;
 
-    public static function request(): MPPosRequest
+    public static function request(string|bool $env = self::ENV_TEST): MPPosRequest
     {
-        return new MPPosRequest();
+        $req = new MPPosRequest();
+        $req->setEnv(self::normalizeEnv($env));
+        return $req;
     }
 
     public static function setLogger(LoggerInterface $logger): void
