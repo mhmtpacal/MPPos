@@ -75,7 +75,7 @@ final class KuveytTurkAdapter implements PosAdapterInterface
         //
         // Bu nedenle: HashData + MerchantId + UserName ekliyoruz:
         $registerLike = $this->client->securePaymentRegister($fields);
-        $token = Arr::pick($registerLike, ['Token', 'Data.Token', 'Result.Token'], '');
+        $token = $this->extractToken($registerLike);
 
         if ($token === '') {
             // bazı ortamlarda register cevap formatı farklı olabilir.
@@ -84,12 +84,10 @@ final class KuveytTurkAdapter implements PosAdapterInterface
             throw new PosException("Token could not be parsed from SecurePaymentRegister response (responseKeys={$keys})");
         }
 
-        // UI’ya en temiz yol token ile yönlendirme:
-        return new FormPayload(
-            action: $this->client->securePaymentUiUrl($token),
-            method: 'GET',
-            fields: [] // GET redirect
-        );
+        $redirectUrl = $this->extractRedirectUrl($registerLike, $token);
+
+        // UI’ya en temiz yol token/URL ile yönlendirme:
+        return new FormPayload(action: $redirectUrl, method: 'GET', fields: []);
     }
 
     public function registerToken(PosPayload $p): array
@@ -112,7 +110,7 @@ final class KuveytTurkAdapter implements PosAdapterInterface
 
         $raw = $this->client->securePaymentRegister($payload);
 
-        $token = Arr::pick($raw, ['Token', 'Data.Token', 'Result.Token'], '');
+        $token = $this->extractToken($raw);
         if ($token === '') {
             // Include raw response keys to help debug integration issues.
             $keys = implode(',', array_keys($raw));
@@ -121,9 +119,47 @@ final class KuveytTurkAdapter implements PosAdapterInterface
 
         return [
             'token'       => $token,
-            'redirectUrl' => $this->client->securePaymentUiUrl($token),
+            'redirectUrl' => $this->extractRedirectUrl($raw, $token),
             'raw'         => $raw,
         ];
+    }
+
+    /**
+     * Kuveyt Turk responses vary by environment/version.
+     * Seen formats:
+     * - { Token: "..." }
+     * - { Data: { Token: "..." } }
+     * - { Result: { Token: "..." } }
+     * - { BusinessKey: "...", Url: "..." }
+     */
+    private function extractToken(array $raw): string
+    {
+        return Arr::pick($raw, [
+            'Token',
+            'Data.Token',
+            'Result.Token',
+            'BusinessKey',
+            'Data.BusinessKey',
+            'Result.BusinessKey',
+        ], '');
+    }
+
+    private function extractRedirectUrl(array $raw, string $token): string
+    {
+        $url = Arr::pick($raw, [
+            'Url',
+            'Data.Url',
+            'Result.Url',
+            'RedirectUrl',
+            'Data.RedirectUrl',
+            'Result.RedirectUrl',
+        ], '');
+
+        if ($url !== '') {
+            return $url;
+        }
+
+        return $this->client->securePaymentUiUrl($token);
     }
 
     public function cancel(string $orderId, string $merchantOrderId): array

@@ -44,7 +44,16 @@ final class KuveytTurk implements BankClientInterface
             (string)($bankPayload['FailUrl'] ?? '')
         );
 
-        return $this->postJson($this->endpointSecurePaymentRegister(), $bankPayload);
+        $resp = $this->postJson($this->endpointSecurePaymentRegister(), $bankPayload);
+
+        // Many responses include ResponseCode/ResponseMessage; bubble up as exception so callers don't parse "success" manually.
+        $code = (string)($resp['ResponseCode'] ?? '');
+        if ($code !== '' && $code !== '00') {
+            $msg = (string)($resp['ResponseMessage'] ?? 'Bank error');
+            throw new BankException("KuveytTurk SecurePaymentRegister failed: {$msg} (ResponseCode={$code})");
+        }
+
+        return $resp;
     }
 
     public function saleReversal(array $bankPayload): array
