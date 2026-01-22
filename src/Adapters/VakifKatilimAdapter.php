@@ -1,9 +1,10 @@
-﻿<?php
+<?php
 declare(strict_types=1);
 
 namespace MPPos\Adapters;
 
 use MPPos\Banks\VakifKatilim;
+use MPPos\MPPos;
 use MPPos\Contracts\PosAdapterInterface;
 use MPPos\Exceptions\PosException;
 
@@ -11,15 +12,15 @@ final class VakifKatilimAdapter implements PosAdapterInterface
 {
     private VakifKatilim $bank;
 
-    public function __construct(array $config, bool $test)
+    public function __construct(array $config, string|bool $env)
     {
+        $env = is_bool($env) ? ($env ? MPPos::ENV_TEST : MPPos::ENV_PROD) : $env;
+
         foreach ([
                      'merchantId',
                      'customerId',
                      'userName',
-                     'password',
-                     'okUrl',
-                     'failUrl'
+                     'password'
                  ] as $k) {
             if (empty($config[$k])) {
                 throw new PosException("VakifKatilim config missing: {$k}");
@@ -27,13 +28,11 @@ final class VakifKatilimAdapter implements PosAdapterInterface
         }
 
         $this->bank = new VakifKatilim(
-            test: $test,
+            env: $env,
             merchantId: (string)$config['merchantId'],
             customerId: (string)$config['customerId'],
             userName: (string)$config['userName'],
-            apiPassword: (string)$config['password'],
-            okUrl: (string)$config['okUrl'],
-            failUrl: (string)$config['failUrl']
+            apiPassword: (string)$config['password']
         );
     }
 

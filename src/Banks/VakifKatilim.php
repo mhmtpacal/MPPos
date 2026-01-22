@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 declare(strict_types=1);
 
 namespace MPPos\Banks;
@@ -8,31 +8,30 @@ use MPPos\MPPos;
 
 final class VakifKatilim
 {
-    private bool $test;
+    private string $env;
     private string $merchantId;
     private string $customerId;
     private string $userName;
     private string $apiPassword; // plain
-    private string $okUrl;
-    private string $failUrl;
 
     public function __construct(
-        bool   $test,
+        string $env,
         string $merchantId,
         string $customerId,
         string $userName,
-        string $apiPassword,
-        string $okUrl,
-        string $failUrl
+        string $apiPassword
     )
     {
-        $this->test = $test;
+        $env = strtolower(trim($env));
+        if (!in_array($env, [MPPos::ENV_TEST, MPPos::ENV_PROD], true)) {
+            throw new InvalidArgumentException('Invalid env');
+        }
+
+        $this->env = $env;
         $this->merchantId = $merchantId;
         $this->customerId = $customerId;
         $this->userName = $userName;
         $this->apiPassword = $apiPassword;
-        $this->okUrl = $okUrl;
-        $this->failUrl = $failUrl;
     }
 
     /* =====================================================
@@ -45,12 +44,21 @@ final class VakifKatilim
      */
     public function createForm(array $p): array
     {
+        // Back-compat: allow okUrl instead of successUrl
+        if (!isset($p['successUrl']) && isset($p['okUrl'])) {
+            $p['successUrl'] = $p['okUrl'];
+        }
+
         $this->requireFields($p, [
             'orderId',
-            'amount'
+            'amount',
+            'successUrl',
+            'failUrl',
         ]);
 
         $amount = $this->formatAmount($p['amount']);
+        $okUrl = (string)$p['successUrl'];
+        $failUrl = (string)$p['failUrl'];
 
         $hashPassword = $this->computeHash($this->apiPassword);
 
@@ -58,8 +66,8 @@ final class VakifKatilim
             $this->merchantId .
             $p['orderId'] .
             $amount .
-            $this->okUrl .
-            $this->failUrl .
+            $okUrl .
+            $failUrl .
             $this->userName .
             $hashPassword;
 
@@ -78,8 +86,8 @@ final class VakifKatilim
                 'Amount' => $amount,
                 'CurrencyCode' => '0949',
 
-                'OkUrl' => $this->okUrl,
-                'FailUrl' => $this->failUrl,
+                'OkUrl' => $okUrl,
+                'FailUrl' => $failUrl,
 
                 'TransactionSecurity' => '3',
                 'InstallmentCount' => '0',
@@ -125,7 +133,7 @@ final class VakifKatilim
 
     private function gatewayUrl(): string
     {
-        return $this->test
+        return $this->env === MPPos::ENV_TEST
             ? 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/ThreeDModelPayGate'
             : 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/ThreeDModelPayGate';
     }

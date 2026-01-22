@@ -9,7 +9,7 @@ use MPPos\MPPos;
 
 final class KuveytTurk
 {
-    private bool $test;
+    private string $env;
     private string $merchantId;
     private string $username;
     private string $password;
@@ -17,13 +17,18 @@ final class KuveytTurk
     private int $timeoutSeconds = 20;
 
     public function __construct(
-        bool $test,
+        string $env,
         string $merchantId,
         string $username,
         string $password,
         string $customerId
     ) {
-        $this->test        = $test;
+        $env = strtolower(trim($env));
+        if (!in_array($env, [MPPos::ENV_TEST, MPPos::ENV_PROD], true)) {
+            throw new InvalidArgumentException('Invalid env');
+        }
+
+        $this->env        = $env;
         $this->merchantId = $merchantId;
         $this->username   = $username;
         $this->password   = $password;
@@ -248,21 +253,21 @@ final class KuveytTurk
 
     private function endpointSecurePaymentRegister(): string
     {
-        return $this->test
+        return $this->env === MPPos::ENV_TEST
             ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/KTPay/SecurePaymentRegister'
             : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/KTPay/SecurePaymentRegister';
     }
 
     private function endpointSecurePaymentUiBase(): string
     {
-        return $this->test
+        return $this->env === MPPos::ENV_TEST
             ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/KTPay/SecurePayment'
             : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/KTPay/SecurePayment';
     }
 
     private function endpointSaleReversal(): string
     {
-        return $this->test
+        return $this->env === MPPos::ENV_TEST
             ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/KTPay/SaleReversal'
             : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/KTPay/SaleReversal';
     }
