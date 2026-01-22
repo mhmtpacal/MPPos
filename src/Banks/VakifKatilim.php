@@ -1,15 +1,13 @@
-<?php
+﻿<?php
 declare(strict_types=1);
 
 namespace MPPos\Banks;
 
 use InvalidArgumentException;
+use MPPos\MPPos;
 
 final class VakifKatilim
 {
-    public const ENV_TEST = 'test';
-    public const ENV_PROD = 'prod';
-
     private string $env;
     private string $merchantId;
     private string $customerId;
@@ -27,7 +25,7 @@ final class VakifKatilim
         string $okUrl,
         string $failUrl
     ) {
-        if (!in_array($env, [self::ENV_TEST, self::ENV_PROD], true)) {
+        if (!in_array($env, [MPPos::ENV_TEST, MPPos::ENV_PROD], true)) {
             throw new InvalidArgumentException('Invalid env');
         }
 
@@ -112,14 +110,10 @@ final class VakifKatilim
      * ===================================================== */
 
     /**
-     * 12.34 → 1234
+     * 12.34 -> 1234
      */
     private function formatAmount(string|int|float $amount): string
     {
-        if (is_int($amount)) {
-            return (string)$amount;
-        }
-
         $s = trim((string)$amount);
         $s = str_replace(['₺', 'TL', ' '], '', $s);
         $s = str_replace('.', '', $s);
@@ -134,7 +128,7 @@ final class VakifKatilim
 
     private function gatewayUrl(): string
     {
-        return $this->env === self::ENV_TEST
+        return $this->env === MPPos::ENV_TEST
             ? 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/ThreeDModelPayGate'
             : 'https://boa.vakifkatilim.com.tr/VirtualPOS.Gateway/Home/ThreeDModelPayGate';
     }
