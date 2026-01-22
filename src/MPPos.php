@@ -19,6 +19,11 @@ final class MPPos
 
     private PosAdapterInterface $adapter;
 
+    public static function request(): MPPosRequest
+    {
+        return new MPPosRequest();
+    }
+
     public function __construct(
         string      $bank,
         string|bool $env,
