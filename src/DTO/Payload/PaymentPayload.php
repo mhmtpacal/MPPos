@@ -36,11 +36,11 @@ final class PaymentPayload
         $this->phone      = Arr::get($data, 'phone');
         $this->ip         = Arr::get($data, 'ip');
 
-        $this->cardNumber  = Arr::get($data, 'card.number');
-        $this->expiryMonth = Arr::get($data, 'card.exp_month');
-        $this->expiryYear  = Arr::get($data, 'card.exp_year');
-        $this->cvv         = Arr::get($data, 'card.cvv');
-        $this->cardHolder  = Arr::get($data, 'card.holder');
+        $this->cardNumber  = Arr::get($data, 'card_number');
+        $this->expiryMonth = Arr::get($data, 'card_exp_month');
+        $this->expiryYear  = Arr::get($data, 'card_exp_year');
+        $this->cvv         = Arr::get($data, 'card_cvv');
+        $this->cardHolder  = Arr::get($data, 'card_holder');
 
         Validator::required([
             'order_id'   => $this->orderId,
