@@ -3,12 +3,12 @@ declare(strict_types=1);
 
 namespace MPPos\Banks\ParamPos;
 
-use MPPos\Core\MPPos;
 use MPPos\DTO\Payload\PaymentPayload;
 use MPPos\DTO\Payload\RefundPayload;
 use MPPos\DTO\Payload\CancelPayload;
 use MPPos\DTO\Result\RefundResult;
 use MPPos\Exceptions\BankException;
+use MPPos\MPPos;
 
 final class ParamPosMapper
 {
@@ -52,8 +52,7 @@ final class ParamPosMapper
                 'Toplam_Tutar' => $toplamTutar,
                 'Taksit'       => $taksit,
 
-                'Islem_Guvenlik_Tip' =>
-                    $p->paymentMethod === MPPos::NONSECURE ? 'NS' : '3D',
+                'Islem_Guvenlik_Tip' => $p->paymentMethod === MPPos::NONSECURE ? 'NS' : '3D',
 
                 'KK_No'     => $p->cardNumber,
                 'KK_SK_Ay'  => $p->expiryMonth,
