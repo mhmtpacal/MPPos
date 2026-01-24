@@ -24,8 +24,7 @@ final class PaymentPayload
     public readonly string $expiryYear;
     public readonly string $cvv;
     public readonly string $cardHolder;
-
-    private string $paymentMethod = MPPos::THREED_3D;
+    public readonly string $paymentMethod;
 
     public function __construct(array $data)
     {
