@@ -3,4 +3,6 @@ declare(strict_types=1);
 
 namespace MPPos\Exceptions;
 
-final class ValidationException extends PosException {}
+use InvalidArgumentException;
+
+class ValidationException extends InvalidArgumentException {}

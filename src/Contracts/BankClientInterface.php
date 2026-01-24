@@ -5,6 +5,5 @@ namespace MPPos\Contracts;
 
 interface BankClientInterface
 {
-    public function securePaymentRegister(array $bankPayload): array;
-    public function saleReversal(array $bankPayload): array;
+    public function request(string $operation, array $payload): array;
 }

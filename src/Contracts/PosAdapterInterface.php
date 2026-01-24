@@ -3,23 +3,20 @@ declare(strict_types=1);
 
 namespace MPPos\Contracts;
 
-use MPPos\DTO\PosPayload;
-use MPPos\DTO\FormPayload;
+use MPPos\Core\Capabilities;
+use MPPos\DTO\Payload\PaymentPayload;
+use MPPos\DTO\Payload\RefundPayload;
+use MPPos\DTO\Payload\CancelPayload;
+use MPPos\DTO\Result\PaymentResult;
+use MPPos\DTO\Result\RefundResult;
 
 interface PosAdapterInterface
 {
-    public function createMerchantForm(PosPayload $payload): FormPayload;
+    public function payment(PaymentPayload $payload): PaymentResult;
 
-    /**
-     * Hosted/Token model: register -> token + redirectUrl
-     * @return array{token:string, redirectUrl:string, raw:array}
-     */
-    public function registerToken(PosPayload $payload): array;
+    public function refund(RefundPayload $payload): RefundResult;
 
-    public function cancel(string $orderId, string $merchantOrderId): array;
-    public function refundFull(string $orderId, string $merchantOrderId): array;
-    public function refundPartial(string $orderId, string $merchantOrderId, int $amountCents): array;
+    public function cancel(CancelPayload $payload): RefundResult;
 
-    public function verifyCallback(array $data): bool;
-    public function getName(): string;
+    public function capabilities(): Capabilities;
 }

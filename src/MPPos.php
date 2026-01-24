@@ -3,18 +3,18 @@ declare(strict_types=1);
 
 namespace MPPos;
 
+use MPPos\Core\PaymentBuilder;
+
 final class MPPos
 {
+    public const PARAMPOS = 'parampos';
+    public const VAKIF    = 'vakif';
+
     public const ENV_TEST = 'test';
     public const ENV_PROD = 'prod';
 
-    /**
-     * Desteklenen bankalar
-     */
-    public const KUVEYT_TURK = 'kuveyt_turk';
-
-    public static function request(): RequestBuilder
+    public static function payment(): PaymentBuilder
     {
-        return new RequestBuilder();
+        return new PaymentBuilder();
     }
 }

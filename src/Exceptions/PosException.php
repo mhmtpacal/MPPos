@@ -3,4 +3,6 @@ declare(strict_types=1);
 
 namespace MPPos\Exceptions;
 
-class PosException extends \RuntimeException {}
+use RuntimeException;
+
+class PosException extends RuntimeException {}

@@ -3,11 +3,8 @@ declare(strict_types=1);
 
 namespace MPPos\Logging;
 
-final class NullLogger implements LoggerInterface
+final class NullLogger implements PosLoggerInterface
 {
-    public function log(string $level, string $message, array $context = []): void
-    {
-        // Intentionally no-op.
-    }
+    public function info(string $message, array $context = []): void {}
+    public function error(string $message, array $context = []): void {}
 }
-
