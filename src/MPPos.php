@@ -13,6 +13,10 @@ final class MPPos
     public const ENV_TEST = 'test';
     public const ENV_PROD = 'prod';
 
+
+    public const THREED_3D    = '3D';
+    public const NONSECURE = 'NS';
+
     public static function payment(): PaymentBuilder
     {
         return new PaymentBuilder();

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace MPPos\Banks\ParamPos;
 
+use MPPos\Core\MPPos;
 use MPPos\DTO\Payload\PaymentPayload;
 use MPPos\DTO\Payload\RefundPayload;
 use MPPos\DTO\Payload\CancelPayload;
@@ -20,106 +21,96 @@ final class ParamPosMapper
 
     public function map3DInit(PaymentPayload $p): array
     {
-        foreach ([
-                     'client_code',
-                     'guid',
-                     'username',
-                     'password'
-                 ] as $k) {
+        foreach (['client_code','guid','username','password'] as $k) {
             if (empty($this->cfg[$k])) {
-                throw new BankException("ParamPOS bankConfig[{$k}] is required");
+                throw new BankException("ParamPOS config '{$k}' missing");
             }
         }
 
-        $taksit = (string)($this->cfg['installment'] ?? '0');
-
-        // Dokümana göre virgüllü format
+        $taksit = (string)($p->installment ?? 1);
         $islemTutar  = $this->formatAmount($p->amount);
         $toplamTutar = $islemTutar;
 
-        // === HASH STRING (DOKÜMANA %100 UYUMLU) ===
+        // TP_WMD_UCD HASH
         $hashStr =
             $this->cfg['client_code'] .
             $this->cfg['guid'] .
             $taksit .
             $islemTutar .
             $toplamTutar .
-            $p->orderId .
-            $p->failUrl .
-            $p->successUrl;
-
-        $islemHash = $this->sha2b64($hashStr);
+            $p->orderId;
 
         return [
             'd' => [
-                // Kimlik
-                'Code' => $this->cfg['client_code'],
-                'User' => $this->cfg['username'],
-                'Pass' => $this->cfg['password'],
-                'GUID' => $this->cfg['guid'],
+                'Code'   => $this->cfg['client_code'],
+                'User'   => $this->cfg['username'],
+                'Pass'   => $this->cfg['password'],
+                'GUID'   => $this->cfg['guid'],
 
-                // Sipariş
                 'Siparis_ID'   => $p->orderId,
                 'Islem_Tutar'  => $islemTutar,
                 'Toplam_Tutar' => $toplamTutar,
                 'Taksit'       => $taksit,
 
-                // Kart (doküman zorunlu kılıyor)
+                'Islem_Guvenlik_Tip' =>
+                    $p->paymentMethod === MPPos::NONSECURE ? 'NS' : '3D',
+
                 'KK_No'     => $p->cardNumber,
                 'KK_SK_Ay'  => $p->expiryMonth,
                 'KK_SK_Yil' => $p->expiryYear,
                 'KK_CVC'    => $p->cvv,
                 'KK_Sahibi' => $p->cardHolder,
 
-                // URL
                 'Basarili_URL' => $p->successUrl,
                 'Hata_URL'     => $p->failUrl,
 
-                // Hash
-                'Islem_Hash' => $islemHash,
+                'Islem_Hash' => $this->sha2b64($hashStr),
             ],
         ];
     }
 
-
-    public function extractUcdHtml(array $resp): ?string
+    public function map3DComplete(array $cb): array
     {
-        // Response içindeki path PDF’e göre değişir (TP_WMD_UCDResult / Sonuc / UCD_HTML)
-        // Şimdilik olası anahtarları kontrol ediyorum:
-        $candidates = [
-            $resp['TP_WMD_UCDResult']['UCD_HTML'] ?? null,
-            $resp['UCD_HTML'] ?? null,
-            $resp['Sonuc']['UCD_HTML'] ?? null,
-        ];
+        // HASH doğrulama
+        $expected = base64_encode(sha1(
+            $cb['islemGUID'] .
+            $cb['md'] .
+            $cb['mdStatus'] .
+            $cb['orderId'] .
+            strtolower($this->cfg['guid']),
+            true
+        ));
 
-        foreach ($candidates as $v) {
-            if (is_string($v) && trim($v) !== '') return $v;
+        if ($expected !== ($cb['islemHash'] ?? '')) {
+            throw new BankException('3D callback hash mismatch');
         }
-        return null;
-    }
 
-    public function extractUcdUrl(array $resp): ?string
-    {
-        $candidates = [
-            $resp['TP_WMD_UCDResult']['UCD_URL'] ?? null,
-            $resp['UCD_URL'] ?? null,
-            $resp['Sonuc']['UCD_URL'] ?? null,
-        ];
-
-        foreach ($candidates as $v) {
-            if (is_string($v) && trim($v) !== '') return $v;
+        if (!in_array((int)$cb['mdStatus'], [1,2,3,4], true)) {
+            throw new BankException('3D doğrulama başarısız');
         }
-        return null;
+
+        return [
+            'd' => [
+                'Code' => $this->cfg['client_code'],
+                'User' => $this->cfg['username'],
+                'Pass' => $this->cfg['password'],
+                'GUID' => $this->cfg['guid'],
+
+                'UCD_MD'    => $cb['md'],
+                'Siparis_ID'=> $cb['orderId'],
+                'Islem_GUID'=> $cb['islemGUID'],
+            ],
+        ];
     }
 
     public function mapRefund(RefundPayload $p): array
     {
         return [
             'd' => [
-                'Code'   => $this->cfg['client_code'] ?? '',
-                'User'   => $this->cfg['username'] ?? '',
-                'Pass'   => $this->cfg['password'] ?? '',
-                'GUID'   => $this->cfg['guid'] ?? '',
+                'Code'   => $this->cfg['client_code'],
+                'User'   => $this->cfg['username'],
+                'Pass'   => $this->cfg['password'],
+                'GUID'   => $this->cfg['guid'],
                 'Order_ID' => $p->orderId,
                 'Amount'   => $this->formatAmount($p->amount),
             ],
@@ -130,10 +121,10 @@ final class ParamPosMapper
     {
         return [
             'd' => [
-                'Code'     => $this->cfg['client_code'] ?? '',
-                'User'     => $this->cfg['username'] ?? '',
-                'Pass'     => $this->cfg['password'] ?? '',
-                'GUID'     => $this->cfg['guid'] ?? '',
+                'Code'     => $this->cfg['client_code'],
+                'User'     => $this->cfg['username'],
+                'Pass'     => $this->cfg['password'],
+                'GUID'     => $this->cfg['guid'],
                 'Order_ID' => $p->orderId,
             ],
         ];
@@ -141,12 +132,9 @@ final class ParamPosMapper
 
     public function mapRefundResult(array $resp): RefundResult
     {
-        // PDF’deki “Sonuc / Sonuc_Str / Islem_ID” gibi alanlara göre netleşecek.
-        $ok = ($resp['Sonuc'] ?? null) == 1 || ($resp['Result'] ?? null) === '1';
-
-        if (!$ok) {
-            $msg = (string)($resp['Sonuc_Str'] ?? $resp['Message'] ?? 'Refund/Cancel failed');
-            throw new BankException($msg);
+        $r = $resp['TP_Islem_Iptal_IadeResult'] ?? null;
+        if (!$r || (int)$r['Sonuc'] <= 0) {
+            throw new BankException((string)($r['Sonuc_Str'] ?? 'İade/iptal başarısız'));
         }
 
         return new RefundResult(true, $resp);
@@ -154,14 +142,11 @@ final class ParamPosMapper
 
     private function sha2b64(string $data): string
     {
-        // sha256 raw -> base64
         return base64_encode(hash('sha256', $data, true));
     }
 
     private function formatAmount(int $amountCents): string
     {
-        // 149900 -> "1499,00" (TR format)
-        $val = $amountCents / 100;
-        return number_format($val, 2, ',', '');
+        return number_format($amountCents / 100, 2, ',', '');
     }
 }

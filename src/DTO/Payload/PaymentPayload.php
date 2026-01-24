@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace MPPos\DTO\Payload;
 
 use MPPos\Exceptions\ValidationException;
+use MPPos\MPPos;
 use MPPos\Support\Arr;
 use MPPos\Support\Amount;
 use MPPos\Support\Validator;
@@ -24,6 +25,7 @@ final class PaymentPayload
     public readonly string $cvv;
     public readonly string $cardHolder;
 
+    private string $paymentMethod = MPPos::THREED_3D;
 
     public function __construct(array $data)
     {
@@ -42,6 +44,7 @@ final class PaymentPayload
         $this->cvv         = Arr::get($data, 'card_cvv');
         $this->cardHolder  = Arr::get($data, 'card_holder');
 
+
         Validator::required([
             'order_id'   => $this->orderId,
             'amount'     => $this->amount,
@@ -52,4 +55,22 @@ final class PaymentPayload
             'ip'         => $this->ip,
         ]);
     }
+
+    public function setPaymentMethod(string $method): self
+    {
+        if (!in_array($method, [MPPos::THREED_3D, MPPos::NONSECURE], true)) {
+            throw new ValidationException('Invalid payment method');
+        }
+
+        $this->paymentMethod = $method;
+        return $this;
+    }
+
+    public function getPaymentMethod(): string
+    {
+        return $this->paymentMethod;
+    }
+
+
+
 }

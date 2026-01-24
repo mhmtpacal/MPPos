@@ -5,11 +5,13 @@ namespace MPPos\Banks\ParamPos;
 
 use MPPos\Contracts\PosAdapterInterface;
 use MPPos\Core\Capabilities;
+use MPPos\Core\MPPos;
 use MPPos\DTO\Payload\PaymentPayload;
 use MPPos\DTO\Payload\RefundPayload;
 use MPPos\DTO\Payload\CancelPayload;
 use MPPos\DTO\Result\PaymentResult;
 use MPPos\DTO\Result\RefundResult;
+use MPPos\Exceptions\BankException;
 
 final class ParamPosAdapter implements PosAdapterInterface
 {
@@ -24,39 +26,59 @@ final class ParamPosAdapter implements PosAdapterInterface
 
     public function payment(PaymentPayload $payload): PaymentResult
     {
-        // 3D başlat: TP_WMD_UCD (veya dokümanın söylediği operasyon)
+        // 3D / NS başlat
         $req  = $this->mapper->map3DInit($payload);
         $resp = $this->client->soap('TP_WMD_UCD', $req);
 
-        $html = $this->mapper->extractUcdHtml($resp);
-        $url  = $this->mapper->extractUcdUrl($resp);
+        $r = $resp['TP_WMD_UCDResult'] ?? null;
+        if (!$r) {
+            throw new BankException('ParamPOS invalid response');
+        }
 
-        // Bazı sistemler URL, bazıları HTML döndürebilir:
-        if ($html) {
-            return new PaymentResult(
-                redirectRequired: false,
-                redirectUrl: null,
-                form: null,
-                html: $html,
+        if ((int)$r['Sonuc'] <= 0) {
+            throw new BankException((string)($r['Sonuc_Str'] ?? 'ParamPOS error'));
+        }
+
+        $ucdHtml = trim((string)($r['UCD_HTML'] ?? ''));
+
+        // NONSECURE → işlem bitti
+        if ($ucdHtml === 'NONSECURE') {
+            if ((int)($r['Islem_ID'] ?? 0) <= 0) {
+                throw new BankException('NONSECURE işlem başarısız');
+            }
+
+            return PaymentResult::success(
+                transactionId: (string)$r['Islem_ID'],
                 raw: $resp
             );
         }
 
-        if ($url) {
-            return new PaymentResult(
-                redirectRequired: true,
-                redirectUrl: $url,
-                form: null,
-                html: null,
-                raw: $resp
-            );
+        // 3D → HTML basılacak
+        return PaymentResult::html3D(
+            html: $ucdHtml,
+            raw: $resp
+        );
+    }
+
+    /**
+     * 3D dönüş sonrası çağrılır
+     */
+    public function complete3D(array $callback): PaymentResult
+    {
+        $req  = $this->mapper->map3DComplete($callback);
+        $resp = $this->client->soap('TP_WMD_Pay', $req);
+
+        $r = $resp['TP_WMD_PayResult'] ?? null;
+        if (!$r) {
+            throw new BankException('ParamPOS invalid 3D complete response');
         }
 
-        return new PaymentResult(
-            redirectRequired: false,
-            redirectUrl: null,
-            form: null,
-            html: null,
+        if ((int)$r['Sonuc'] <= 0) {
+            throw new BankException((string)($r['Sonuc_Str'] ?? '3D ödeme başarısız'));
+        }
+
+        return PaymentResult::success(
+            transactionId: (string)$r['Islem_ID'],
             raw: $resp
         );
     }
