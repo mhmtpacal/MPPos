@@ -3,27 +3,29 @@ declare(strict_types=1);
 
 namespace MPPos\Core;
 
-abstract class AbstractPos
+use MPPos\Contracts\PosAdapterInterface;
+
+abstract class AbstractPos implements PosAdapterInterface
 {
     protected array $payload = [];
     protected array $account = [];
     protected bool $test = false;
 
-    protected ?array $lastResponse = null;
-
-    // 🔒 State setter'lar sadece child tarafından çağrılır
-    protected function setAccount(array $account): void
+    public function account(array $account): static
     {
         $this->account = $account;
+        return $this;
     }
 
-    protected function setPayload(array $payload): void
+    public function payload(array $payload): static
     {
         $this->payload = $payload;
+        return $this;
     }
 
-    protected function setTest(bool $test): void
+    public function test(bool $test): static
     {
         $this->test = $test;
+        return $this;
     }
 }

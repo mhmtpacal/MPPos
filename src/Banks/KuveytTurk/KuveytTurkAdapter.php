@@ -17,26 +17,6 @@ final class KuveytTurkAdapter extends AbstractPos
         $this->mapper = new KuveytTurkMapper();
     }
 
-    // ========= FLUENT API =========
-
-    public function account(array $account): static
-    {
-        $this->setAccount($account);
-        return $this;
-    }
-
-    public function payload(array $payload): static
-    {
-        $this->setPayload($payload);
-        return $this;
-    }
-
-    public function test(bool $test): static
-    {
-        $this->setTest($test);
-        return $this;
-    }
-
     // ========= INTERNAL =========
 
     private function boot(): void
@@ -65,6 +45,8 @@ final class KuveytTurkAdapter extends AbstractPos
 
     public function payment(): array
     {
+        file_put_contents('test2.txt','PAYMENT CALL: ' . spl_object_id($this));
+
         $this->boot();
 
         $data = $this->mapper->payment($this->payload);
