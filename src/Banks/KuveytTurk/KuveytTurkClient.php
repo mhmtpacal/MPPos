@@ -394,6 +394,13 @@ XML;
         ];
     }
 
+    public function buildPaymentHash(string $orderId, string $amount): string
+    {
+        $hashedPassword = base64_encode(sha1($this->toIso($this->password), true));
+        $data = $this->merchantId . $orderId . $amount . $this->username . $hashedPassword;
+        return base64_encode(sha1($this->toIso($data), true));
+    }
+
     public function getResponse(): array
     {
         if ($this->lastResponse === null) {

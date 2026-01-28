@@ -48,18 +48,42 @@ final class KuveytTurkAdapter extends AbstractPos
     }
 
 
-    public function payment(): void
+    public function payment(): array
     {
-        // Şimdilik KuveytTürk’te payment akışı bu kütüphanede yok.
-        $this->lastResponse = [
-            'ok'        => false,
-            'code'      => 'NOT_IMPLEMENTED',
-            'message'   => 'payment() is not implemented for kuveytturk yet',
-            'http_code' => 0,
-            'type'      => null,
-            'provider'  => 'kuveytturk',
+        $this->boot();
+
+        $data = $this->mapper->payment($this->payload);
+
+        $hash = $this->client->buildPaymentHash(
+            $data['MerchantOrderId'],
+            $data['Amount']
+        );
+
+        return [
+            'action' => $this->test ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate' : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate',
+            'method' => 'POST',
+            'fields' => [
+                'hidden' => [
+                    'APIVersion'  => 'TDV2.0.0',
+                    'MerchantId'  => $this->account['merchant_id'],
+                    'CustomerId'  => $this->account['customer_id'],
+                    'UserName'    => $this->account['username'],
+                    'HashData'    => $hash,
+                    ...$data,
+                ],
+                'card_fields' => [
+                    'CardNumber',
+                    'CardExpireDateMonth',
+                    'CardExpireDateYear',
+                    'CardCVV2',
+                    'CardHolderName',
+                ],
+            ],
         ];
     }
+
+
+
 
     public function cancel(): void
     {
