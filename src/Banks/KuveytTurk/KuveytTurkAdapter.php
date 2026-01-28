@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace MPPos\Banks\KuveytTurk;
 
+use MPPos\Contracts\PosAdapterInterface;
 use MPPos\Core\AbstractPos;
 use MPPos\Core\PosException;
 
@@ -16,6 +17,28 @@ final class KuveytTurkAdapter extends AbstractPos
         $this->mapper = new KuveytTurkMapper();
     }
 
+    // ========= FLUENT API =========
+
+    public function account(array $account): static
+    {
+        $this->setAccount($account);
+        return $this;
+    }
+
+    public function payload(array $payload): static
+    {
+        $this->setPayload($payload);
+        return $this;
+    }
+
+    public function test(bool $test): static
+    {
+        $this->setTest($test);
+        return $this;
+    }
+
+    // ========= INTERNAL =========
+
     private function boot(): void
     {
         foreach (['merchant_id', 'customer_id', 'username', 'password'] as $k) {
@@ -24,8 +47,9 @@ final class KuveytTurkAdapter extends AbstractPos
             }
         }
 
-        // Endpoint opsiyonel: endpoint_test / endpoint_prod / endpoint
-        $endpoint = $this->resolveEndpoint();
+        $endpoint = $this->test
+            ? 'https://boatest.kuveytturk.com.tr/BOA.Integration.WCFService/BOA.Integration.VirtualPos/VirtualPosService.svc/Basic'
+            : 'https://boa.kuveytturk.com.tr/BOA.Integration.WCFService/BOA.Integration.VirtualPos/VirtualPosService.svc/Basic';
 
         $this->client = new KuveytTurkClient(
             (string)$this->account['merchant_id'],
@@ -37,16 +61,7 @@ final class KuveytTurkAdapter extends AbstractPos
         );
     }
 
-    private function resolveEndpoint(): string
-    {
-        // Kuveyt Türk için net ve sabit kurallar
-        if ($this->test === true) {
-            return 'https://boatest.kuveytturk.com.tr/BOA.Integration.WCFService/BOA.Integration.VirtualPos/VirtualPosService.svc/Basic';
-        }
-
-        return 'https://boa.kuveytturk.com.tr/BOA.Integration.WCFService/BOA.Integration.VirtualPos/VirtualPosService.svc/Basic';
-    }
-
+    // ========= ACTIONS =========
 
     public function payment(): array
     {
@@ -60,15 +75,17 @@ final class KuveytTurkAdapter extends AbstractPos
         );
 
         return [
-            'action' => $this->test ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate' : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate',
+            'action' => $this->test
+                ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate'
+                : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate',
             'method' => 'POST',
             'fields' => [
                 'hidden' => [
-                    'APIVersion'  => 'TDV2.0.0',
-                    'MerchantId'  => $this->account['merchant_id'],
-                    'CustomerId'  => $this->account['customer_id'],
-                    'UserName'    => $this->account['username'],
-                    'HashData'    => $hash,
+                    'APIVersion' => 'TDV2.0.0',
+                    'MerchantId' => $this->account['merchant_id'],
+                    'CustomerId' => $this->account['customer_id'],
+                    'UserName'   => $this->account['username'],
+                    'HashData'   => $hash,
                     ...$data,
                 ],
                 'card_fields' => [
@@ -81,9 +98,6 @@ final class KuveytTurkAdapter extends AbstractPos
             ],
         ];
     }
-
-
-
 
     public function cancel(): void
     {
@@ -104,5 +118,17 @@ final class KuveytTurkAdapter extends AbstractPos
         $this->boot();
         $this->client->partialRefund($this->mapper->partialRefund($this->payload));
         $this->lastResponse = $this->client->getResponse();
+    }
+
+    public function getResponse(): array
+    {
+        return $this->lastResponse ?? [
+            'ok'        => false,
+            'code'      => 'NO_REQUEST',
+            'message'   => 'No transaction executed',
+            'http_code' => 0,
+            'type'      => null,
+            'provider'  => 'kuveytturk',
+        ];
     }
 }
