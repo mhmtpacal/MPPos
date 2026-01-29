@@ -394,12 +394,36 @@ XML;
         ];
     }
 
-    public function buildPaymentHash(string $orderId, string $amount): string
-    {
-        $hashedPassword = base64_encode(sha1($this->toIso($this->password), true));
-        $data = $this->merchantId . $orderId . $amount . $this->username . $hashedPassword;
-        return base64_encode(sha1($this->toIso($data), true));
+    public function buildPaymentHash(
+        string $merchantOrderId,
+        string $amount,
+        string $okUrl,
+        string $failUrl
+    ): string {
+        // 1️⃣ API kullanıcı şifresi (plain)
+        $password = $this->password;
+
+        // 2️⃣ HashedPassword
+        $hashedPassword = base64_encode(
+            sha1(mb_convert_encoding($password, 'ISO-8859-9', 'UTF-8'), true)
+        );
+
+        // 3️⃣ HashData input
+        $hashStr =
+            $this->merchantId .
+            $merchantOrderId .
+            $amount .
+            $okUrl .
+            $failUrl .
+            $this->username .
+            $hashedPassword;
+
+        // 4️⃣ HashData
+        return base64_encode(
+            sha1(mb_convert_encoding($hashStr, 'ISO-8859-9', 'UTF-8'), true)
+        );
     }
+
 
     public function getResponse(): array
     {

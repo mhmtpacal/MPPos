@@ -53,7 +53,9 @@ final class KuveytTurkAdapter extends AbstractPos
 
         $hash = $this->client->buildPaymentHash(
             $data['MerchantOrderId'],
-            $data['Amount']
+            $data['Amount'],
+            $data['OkUrl'],
+            $data['FailUrl'],
         );
 
         return [
