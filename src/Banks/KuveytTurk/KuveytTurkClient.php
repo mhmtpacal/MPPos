@@ -400,23 +400,9 @@ XML;
         string $okUrl,
         string $failUrl
     ): string {
-        // 1️⃣ API kullanıcı şifresi (plain)
         $password = $this->password;
-
-        // 2️⃣ HashedPassword
-        $hashedPassword = base64_encode(
-            sha1(mb_convert_encoding($password, 'ISO-8859-9', 'UTF-8'), true)
-        );
-
-        // 3️⃣ HashData input
-        $hashStr =
-            $this->merchantId .
-            $merchantOrderId .
-            $amount .
-            $okUrl .
-            $failUrl .
-            $this->username .
-            $hashedPassword;
+        $hashedPassword = base64_encode(sha1(mb_convert_encoding($password, 'ISO-8859-9', 'UTF-8'), true));
+        $hashStr = $this->merchantId . $merchantOrderId . $amount . $okUrl . $failUrl . $this->username . $hashedPassword;
 
         // 4️⃣ HashData
         return base64_encode(

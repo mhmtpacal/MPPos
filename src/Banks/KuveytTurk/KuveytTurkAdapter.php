@@ -45,8 +45,6 @@ final class KuveytTurkAdapter extends AbstractPos
 
     public function payment(): array
     {
-        file_put_contents('test2.txt','PAYMENT CALL: ' . spl_object_id($this));
-
         $this->boot();
 
         $data = $this->mapper->payment($this->payload);
