@@ -67,20 +67,57 @@ final class ParamPosAdapter extends AbstractPos
         return $this->lastResponse;
     }
 
-    public function cancel(): void
+    public function cancel(): array
     {
-        return;
+        return $this->refundInternal(
+            'IPTAL',
+            $this->payload['order_id'],
+            $this->payload['amount']
+        );
     }
 
-    public function refund(): void
+    public function refund(): array
     {
-        return;
+        return $this->refundInternal(
+            'IADE',
+            $this->payload['order_id'],
+            $this->payload['amount']
+        );
     }
 
-    public function partialRefund(): void
+    public function partialRefund(): array
     {
-        return;
+        return $this->refundInternal(
+            'IADE',
+            $this->payload['order_id'],
+            $this->payload['amount']
+        );
     }
+
+    private function refundInternal(
+        string $durum,
+        string $orderId,
+        int|float $amount
+    ): array {
+        if (!$this->account) {
+            throw new PosException('Account not set');
+        }
+
+        $request = $this->mapper->mapCancelRefund(
+            $this->account,
+            $durum,
+            $orderId,
+            $amount
+        );
+
+        $this->lastResponse = $this->client->call(
+            'TP_Islem_Iptal_Iade_Kismi2',
+            $request
+        );
+
+        return $this->lastResponse;
+    }
+
 
     public function getResponse(): array
     {

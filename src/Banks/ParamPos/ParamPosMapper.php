@@ -60,11 +60,44 @@ final class ParamPosMapper
             'Islem_Tutar'         => $amount,
             'Toplam_Tutar'        => $amount,
             'Islem_Hash'          => $hash,
-            'Islem_Guvenlik_Tip'  => 'NS',
+            'Islem_Guvenlik_Tip'  => '3D',
             'IPAdr'               => $payload['ip'],
             'Ref_URL'             => $payload['success_url'],
         ];
     }
+
+    public function mapCancelRefund(
+        array $account,
+        string $durum,
+        string $orderId,
+        int|float $amount
+    ): array {
+        foreach (['client_code','username','password','guid'] as $k) {
+            if (empty($account[$k])) {
+                throw new PosException("ParamPOS account[$k] missing");
+            }
+        }
+
+        if (!in_array($durum, ['IPTAL','IADE'], true)) {
+            throw new PosException('Invalid refund type');
+        }
+
+        // ParamPOS: noktalı format zorunlu
+        $tutar = number_format($amount / 100, 2, '.', '');
+
+        return [
+            'G' => [
+                'CLIENT_CODE'     => $account['client_code'],
+                'CLIENT_USERNAME' => $account['username'],
+                'CLIENT_PASSWORD' => $account['password'],
+            ],
+            'GUID'       => $account['guid'],
+            'Durum'      => $durum,
+            'Siparis_ID' => $orderId,
+            'Tutar'      => $tutar,
+        ];
+    }
+
 
     private function hash(
         string $clientCode,
@@ -75,12 +108,6 @@ final class ParamPosMapper
         string $siparisId
     ): string {
         $str = $clientCode.$guid.$taksit.$islemTutar.$toplamTutar.$siparisId;
-
-        return base64_encode(
-            sha1(
-                mb_convert_encoding($str, 'ISO-8859-9'),
-                true
-            )
-        );
+        return base64_encode(sha1(mb_convert_encoding($str, 'ISO-8859-9'), true));
     }
 }
