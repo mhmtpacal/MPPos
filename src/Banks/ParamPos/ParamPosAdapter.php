@@ -66,4 +66,31 @@ final class ParamPosAdapter extends AbstractPos
 
         return $this->lastResponse;
     }
+
+    public function cancel(): void
+    {
+        return;
+    }
+
+    public function refund(): void
+    {
+        return;
+    }
+
+    public function partialRefund(): void
+    {
+        return;
+    }
+
+    public function getResponse(): array
+    {
+        return $this->lastResponse ?? [
+            'ok'        => false,
+            'code'      => 'NO_REQUEST',
+            'message'   => 'No transaction executed',
+            'http_code' => 0,
+            'type'      => null,
+            'provider'  => 'kuveytturk',
+        ];
+    }
 }
