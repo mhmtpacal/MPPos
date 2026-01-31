@@ -4,12 +4,18 @@ declare(strict_types=1);
 namespace MPPos;
 
 use MPPos\Banks\KuveytTurk\KuveytTurkAdapter;
-use MPPos\Core\AbstractPos;
+use MPPos\Banks\ParamPos\ParamPosAdapter;
 
 final class MPPos
 {
-    public static function kuveytturk(): \MPPos\Banks\KuveytTurk\KuveytTurkAdapter
+    public static function kuveytturk(): KuveytTurkAdapter
     {
-        return new \MPPos\Banks\KuveytTurk\KuveytTurkAdapter();
+        return new KuveytTurkAdapter();
+    }
+
+    public static function parampos(): ParamPosAdapter
+    {
+        return new ParamPosAdapter();
     }
 }
+
