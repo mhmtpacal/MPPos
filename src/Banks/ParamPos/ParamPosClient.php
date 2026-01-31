@@ -8,7 +8,7 @@ use MPPos\Exceptions\PosException;
 final class ParamPosClient
 {
     private string $endpoint =
-        'https://testposws.param.com.tr/turkpos.ws/service_turkpos_prod.asmx';
+        'https://testposws.param.com.tr/turkpos.ws/service_turkpos_prod.asmx?wsdl';
 
     public function call(string $action, array $data): array
     {
