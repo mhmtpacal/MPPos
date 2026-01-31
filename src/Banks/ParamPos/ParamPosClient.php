@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace MPPos\Banks\ParamPos;
 
-use MPPos\Exceptions\PosException;
+use MPPos\Core\PosException;
 
 final class ParamPosClient
 {
@@ -16,23 +16,27 @@ final class ParamPosClient
 
         $ch = curl_init($this->endpoint);
         curl_setopt_array($ch, [
-            CURLOPT_POST            => true,
-            CURLOPT_RETURNTRANSFER  => true,
-            CURLOPT_HTTPHEADER      => [
-                'Content-Type: text/xml; charset=utf-8'
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: text/xml; charset=utf-8',
+                'SOAPAction: "https://turkpos.com.tr/'.$action.'"'
             ],
-            CURLOPT_POSTFIELDS      => $xml,
-            CURLOPT_TIMEOUT         => 30,
+            CURLOPT_POSTFIELDS     => $xml,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
         ]);
 
         $response = curl_exec($ch);
 
         if ($response === false) {
-            throw new PosException(curl_error($ch));
+            throw new PosException('Curl error: '.curl_error($ch));
         }
 
         return $this->parseResponse($response);
     }
+
 
     private function buildSoap(string $action, array $data): string
     {

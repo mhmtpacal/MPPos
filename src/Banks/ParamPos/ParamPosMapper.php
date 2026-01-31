@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace MPPos\Banks\ParamPos;
 
-use MPPos\Exceptions\PosException;
+use MPPos\Core\PosException;
 
 final class ParamPosMapper
 {
