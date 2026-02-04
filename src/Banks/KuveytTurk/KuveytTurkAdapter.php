@@ -12,6 +12,24 @@ final class KuveytTurkAdapter extends AbstractPos implements PosAdapterInterface
     private KuveytTurkClient $client;
     private KuveytTurkMapper $mapper;
 
+    /** @return $this */
+    public function account(array $account): static
+    {
+        return parent::account($account);
+    }
+
+    /** @return $this */
+    public function payload(array $payload): static
+    {
+        return parent::payload($payload);
+    }
+
+    /** @return $this */
+    public function test(bool $test): static
+    {
+        return parent::test($test);
+    }
+
     public function __construct()
     {
         $this->mapper = new KuveytTurkMapper();
