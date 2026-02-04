@@ -13,8 +13,8 @@ final class ParamPosAdapter extends AbstractPos
 
     public function __construct()
     {
-        $this->client  = new ParamPosClient();
-        $this->mapper  = new ParamPosMapper();
+        $this->client = new ParamPosClient();
+        $this->mapper = new ParamPosMapper();
     }
 
     /**
@@ -26,27 +26,29 @@ final class ParamPosAdapter extends AbstractPos
             throw new PosException('Payload or account not set');
         }
 
-        $request = $this->mapper->map3DInit(
-            $this->payload,
-            $this->account
-        );
+        $request = $this->mapper->map3DInit($this->payload, $this->account);
 
-        $this->lastResponse = $this->client->call(
-            'TP_WMD_UCD',
-            $request
-        );
+        $this->lastResponse = $this->client->call('TP_WMD_UCD', $request);
 
         return $this->lastResponse;
     }
 
     /**
      * 3D Complete (TP_WMD_Pay)
+     * Not in interface; optional helper method.
      */
-    public function complete3D(
-        string $ucdMd,
-        string $islemGuid,
-        string $orderId
-    ): array {
+    public function complete3D(string $ucdMd, string $islemGuid, string $orderId): array
+    {
+        if (!$this->account) {
+            throw new PosException('Account not set');
+        }
+
+        foreach (['client_code', 'username', 'password', 'guid'] as $k) {
+            if (empty($this->account[$k])) {
+                throw new PosException("ParamPOS account[$k] missing");
+            }
+        }
+
         $request = [
             'G' => [
                 'CLIENT_CODE'     => $this->account['client_code'],
@@ -59,50 +61,64 @@ final class ParamPosAdapter extends AbstractPos
             'Siparis_ID' => $orderId,
         ];
 
-        $this->lastResponse = $this->client->call(
-            'TP_WMD_Pay',
-            $request
-        );
+        $this->lastResponse = $this->client->call('TP_WMD_Pay', $request);
 
         return $this->lastResponse;
     }
 
-    public function cancel(): array
+    public function cancel(): void
     {
-        return $this->refundInternal(
+        $this->ensureRefundPayload();
+
+        $this->refundInternal(
             'IPTAL',
-            $this->payload['order_id'],
+            (string)$this->payload['order_id'],
             $this->payload['amount']
         );
     }
 
-    public function refund(): array
+    public function refund(): void
     {
-        return $this->refundInternal(
+        $this->ensureRefundPayload();
+
+        $this->refundInternal(
             'IADE',
-            $this->payload['order_id'],
+            (string)$this->payload['order_id'],
             $this->payload['amount']
         );
     }
 
-    public function partialRefund(): array
+    public function partialRefund(): void
     {
-        return $this->refundInternal(
+        $this->ensureRefundPayload();
+
+        // ParamPOS aynı servisle kısmi iade yapıyor: IADE + Tutar
+        $this->refundInternal(
             'IADE',
-            $this->payload['order_id'],
+            (string)$this->payload['order_id'],
             $this->payload['amount']
         );
     }
 
-    private function refundInternal(
-        string $durum,
-        string $orderId,
-        int|float $amount
-    ): array {
+    private function ensureRefundPayload(): void
+    {
         if (!$this->account) {
             throw new PosException('Account not set');
         }
 
+        if (!$this->payload) {
+            throw new PosException('Payload not set');
+        }
+
+        foreach (['order_id', 'amount'] as $k) {
+            if (!isset($this->payload[$k]) || $this->payload[$k] === '' || $this->payload[$k] === null) {
+                throw new PosException("Payload[$k] missing");
+            }
+        }
+    }
+
+    private function refundInternal(string $durum, string $orderId, int|float $amount): void
+    {
         $request = $this->mapper->mapCancelRefund(
             $this->account,
             $durum,
@@ -114,10 +130,7 @@ final class ParamPosAdapter extends AbstractPos
             'TP_Islem_Iptal_Iade_Kismi2',
             $request
         );
-
-        return $this->lastResponse;
     }
-
 
     public function getResponse(): array
     {
@@ -127,7 +140,7 @@ final class ParamPosAdapter extends AbstractPos
             'message'   => 'No transaction executed',
             'http_code' => 0,
             'type'      => null,
-            'provider'  => 'kuveytturk',
+            'provider'  => 'parampos',
         ];
     }
 }
