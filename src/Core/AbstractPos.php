@@ -3,13 +3,12 @@ declare(strict_types=1);
 
 namespace MPPos\Core;
 
-use MPPos\Contracts\PosAdapterInterface;
-
-abstract class AbstractPos implements PosAdapterInterface
+abstract class AbstractPos
 {
     protected array $payload = [];
     protected array $account = [];
     protected bool $test = false;
+    protected ?array $lastResponse = null;
 
     public function account(array $account): static
     {

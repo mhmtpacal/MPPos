@@ -7,7 +7,7 @@ use MPPos\Contracts\PosAdapterInterface;
 use MPPos\Core\AbstractPos;
 use MPPos\Core\PosException;
 
-final class KuveytTurkAdapter extends AbstractPos
+final class KuveytTurkAdapter extends AbstractPos implements PosAdapterInterface
 {
     private KuveytTurkClient $client;
     private KuveytTurkMapper $mapper;

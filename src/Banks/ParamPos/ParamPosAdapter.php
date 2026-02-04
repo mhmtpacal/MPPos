@@ -3,10 +3,11 @@ declare(strict_types=1);
 
 namespace MPPos\Banks\ParamPos;
 
+use MPPos\Contracts\PosAdapterInterface;
 use MPPos\Core\AbstractPos;
 use MPPos\Core\PosException;
 
-final class ParamPosAdapter extends AbstractPos
+final class ParamPosAdapter extends AbstractPos implements PosAdapterInterface
 {
     private ParamPosClient $client;
     private ParamPosMapper $mapper;
