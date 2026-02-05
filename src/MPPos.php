@@ -18,4 +18,3 @@ final class MPPos
         return new ParamPosAdapter();
     }
 }
-

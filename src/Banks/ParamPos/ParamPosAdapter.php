@@ -7,28 +7,10 @@ use MPPos\Contracts\PosAdapterInterface;
 use MPPos\Core\AbstractPos;
 use MPPos\Core\PosException;
 
-final class ParamPosAdapter extends AbstractPos implements PosAdapterInterface
+final class ParamPosAdapter extends AbstractPos
 {
     private ParamPosClient $client;
     private ParamPosMapper $mapper;
-
-    /** @return $this */
-    public function account(array $account): static
-    {
-        return parent::account($account);
-    }
-
-    /** @return $this */
-    public function payload(array $payload): static
-    {
-        return parent::payload($payload);
-    }
-
-    /** @return $this */
-    public function test(bool $test): static
-    {
-        return parent::test($test);
-    }
 
     public function __construct()
     {
