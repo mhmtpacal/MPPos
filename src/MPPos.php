@@ -4,14 +4,17 @@ declare(strict_types=1);
 namespace MPPos;
 
 use MPPos\Banks\KuveytTurk\KuveytTurkAdapter;
+use MPPos\Banks\ParamPos\ParamPosAdapter;
 
 final class MPPos
 {
-    public const ENV_TEST = 'test';
-    public const ENV_PROD = 'prod';
-
     public static function kuveytturk(): KuveytTurkAdapter
     {
         return new KuveytTurkAdapter();
+    }
+
+    public static function parampos(): ParamPosAdapter
+    {
+        return new ParamPosAdapter();
     }
 }

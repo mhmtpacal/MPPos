@@ -7,9 +7,11 @@ MPYazılım Çoklu Banka Pos Kütüphanesi
 Bankaların **ödeme, iptal, iade ve kısmi iade** altyapılarını destekleyen,  
 çoklu banka entegrasyonu için geliştirilmiş PHP kütüphanesi.
 
-| Desteklenen Bankalar | Desteklenen Yöntemler         |
-|----------------------|-------------------------------|
-| KuveytTürk           | **İptal, İade, Kısmi İade**       |
+| Desteklenen Bankalar | Desteklenen Yöntemler                                  |
+|----------------------|--------------------------------------------------------|
+| KuveytTürk V2        | 🟡 Ödeme<br/>🟢 İptal<br/> 🟢 İade<br/> 🟢 Kısmi İade  |
+| ParamPos             | 🟢 Ödeme<br/>🟢 İptal<br/> 🟢 İade<br/> 🟢 Kısmi İade  |
+
 
 ---
 

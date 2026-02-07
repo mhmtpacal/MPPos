@@ -33,6 +33,24 @@ final class KuveytTurkMapper implements PayloadMapperInterface
 
     public function payment(array $p): array
     {
-        return $this->payment($p);
+        foreach (['ok_url', 'fail_url', 'amount', 'merchantOrderId'] as $k) {
+            if (empty($p[$k])) {
+                throw new \RuntimeException("Missing payment field: {$k}");
+            }
+        }
+
+        return [
+            'APIVersion'        => 'TDV2.0.0',
+            'OkUrl'            => $p['ok_url'],
+            'FailUrl'          => $p['fail_url'],
+            'Amount'           => (string)$p['amount'],
+            'DisplayAmount'    => (string)$p['amount'],
+            'MerchantOrderId'  => $p['merchantOrderId'],
+            'InstallmentCount' => (string)($p['installment'] ?? 0),
+            'CurrencyCode'     => '0949',
+            'TransactionType'  => 'Sale',
+            'TransactionSecurity' => '3',
+        ];
     }
+
 }
