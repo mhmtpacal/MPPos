@@ -10,6 +10,7 @@ Bankaların **ödeme, iptal, iade ve kısmi iade** altyapılarını destekleyen,
 | Desteklenen Bankalar | Desteklenen Yöntemler                                  |
 |----------------------|--------------------------------------------------------|
 | KuveytTürk V2        | 🟡 Ödeme<br/>🟢 İptal<br/> 🟢 İade<br/> 🟢 Kısmi İade  |
+| ParamPos             | 🟢 Ödeme<br/>🟢 İptal<br/> 🟢 İade<br/> 🟢 Kısmi İade  |
 
 
 ---
