@@ -50,25 +50,24 @@ final class KuveytTurkAdapter extends AbstractPos
             $data['FailUrl'],
         );
 
+        $fields = [
+            'MerchantId' => $this->account['merchant_id'],
+            'CustomerId' => $this->account['customer_id'],
+            'UserName' => $this->account['username'],
+            'HashData' => $hash,
+            ...$data,
+        ];
+
+        $result = $this->client->init3D($fields, $this->paymentGateUrl());
+
         return [
-            'action' => $this->paymentGateUrl(),
-            'method' => 'POST',
-            'fields' => [
-                'hidden' => [
-                    'MerchantId' => $this->account['merchant_id'],
-                    'CustomerId' => $this->account['customer_id'],
-                    'UserName' => $this->account['username'],
-                    'HashData' => $hash,
-                    ...$data,
-                ],
-                'card_fields' => [
-                    'CardNumber',
-                    'CardExpireDateMonth',
-                    'CardExpireDateYear',
-                    'CardCVV2',
-                    'CardHolderName',
-                ],
-            ],
+            'ok' => (bool)($result['ok'] ?? false),
+            'http_code' => (int)($result['http_code'] ?? 0),
+            'html' => (string)($result['body'] ?? ''),
+            'error' => (string)($result['error'] ?? ''),
+            'request' => $fields,
+            'provider' => 'kuveytturk',
+            'type' => 'Init3D',
         ];
     }
 

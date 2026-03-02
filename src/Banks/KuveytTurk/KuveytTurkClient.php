@@ -224,25 +224,21 @@ XML;
             }
         }
 
+        $xml = $this->buildProvisionXml($fields);
+
         $this->lastType = 'Sale';
-        $this->lastResponse = $this->postForm($url, [
-            'APIVersion' => 'TDV2.0.0',
-            'HashData' => (string)$fields['HashData'],
-            'MerchantId' => (string)$fields['MerchantId'],
-            'CustomerId' => (string)$fields['CustomerId'],
-            'UserName' => (string)$fields['UserName'],
-            'TransactionType' => (string)$fields['TransactionType'],
-            'InstallmentCount' => (string)$fields['InstallmentCount'],
-            'Amount' => (string)$fields['Amount'],
-            'MerchantOrderId' => (string)$fields['MerchantOrderId'],
-            'TransactionSecurity' => (string)$fields['TransactionSecurity'],
-            'KuveytTurkVPosAdditionalData' => [
-                'AdditionalData' => [
-                    'Key' => 'MD',
-                    'Data' => (string)$fields['MD'],
-                ],
-            ],
-        ]);
+        $this->lastResponse = $this->postXml($url, $xml);
+    }
+
+    public function init3D(array $fields, string $url): array
+    {
+        foreach (['MerchantId', 'CustomerId', 'UserName', 'HashData', 'APIVersion', 'OkUrl', 'FailUrl', 'CardNumber', 'CardExpireDateYear', 'CardExpireDateMonth', 'CardCVV2', 'CardHolderName', 'TransactionType', 'InstallmentCount', 'Amount', 'DisplayAmount', 'CurrencyCode', 'MerchantOrderId', 'TransactionSecurity', 'ClientIP'] as $key) {
+            if (!isset($fields[$key]) || $fields[$key] === '') {
+                throw new RuntimeException("Missing field: {$key}");
+            }
+        }
+
+        return $this->postRawForm($url, $fields);
     }
 
     public function parsePaymentResponse(array $payload): array
@@ -444,14 +440,23 @@ XML;
 
     private function postForm(string $url, array $fields): array
     {
-        $body = http_build_query($this->flattenFields($fields), '', '&');
+        $result = $this->postRawForm($url, $fields);
+        $responseBody = $result['body'] ?? '';
 
+        return [
+            'http_code' => (int)($result['http_code'] ?? 0),
+            'parsed' => $this->parseProvisionResponse($responseBody),
+        ];
+    }
+
+    private function postXml(string $url, string $xml): array
+    {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_POSTFIELDS => $xml,
             CURLOPT_HTTPHEADER => [
-                'Content-Type: application/x-www-form-urlencoded',
+                'Content-Type: text/xml; charset=utf-8',
                 'Connection: close',
             ],
             CURLOPT_RETURNTRANSFER => true,
@@ -487,6 +492,53 @@ XML;
         return [
             'http_code' => (int)($info['http_code'] ?? 0),
             'parsed' => $this->parseProvisionResponse($responseBody),
+        ];
+    }
+
+    private function postRawForm(string $url, array $fields): array
+    {
+        $body = http_build_query($this->flattenFields($fields), '', '&');
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/x-www-form-urlencoded',
+                'Connection: close',
+            ],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
+            CURLOPT_TIMEOUT => $this->timeoutSeconds,
+        ]);
+
+        $raw = curl_exec($ch);
+        $info = curl_getinfo($ch);
+
+        if ($raw === false) {
+            $err = curl_error($ch);
+            $no = curl_errno($ch);
+            curl_close($ch);
+
+            return [
+                'ok' => false,
+                'http_code' => (int)($info['http_code'] ?? 0),
+                'body' => '',
+                'error' => "curl_errno={$no}; curl_error={$err}",
+            ];
+        }
+
+        curl_close($ch);
+
+        $headerSize = (int)($info['header_size'] ?? 0);
+
+        return [
+            'ok' => ((int)($info['http_code'] ?? 0)) >= 200 && ((int)($info['http_code'] ?? 0)) < 400,
+            'http_code' => (int)($info['http_code'] ?? 0),
+            'body' => substr($raw, $headerSize),
+            'error' => '',
         ];
     }
 
@@ -662,6 +714,43 @@ XML;
         }
 
         return $flattened;
+    }
+
+    private function buildProvisionXml(array $fields): string
+    {
+        $apiVersion = htmlspecialchars((string)($fields['APIVersion'] ?? 'TDV2.0.0'), ENT_XML1);
+        $hashData = htmlspecialchars((string)$fields['HashData'], ENT_XML1);
+        $merchantId = htmlspecialchars((string)$fields['MerchantId'], ENT_XML1);
+        $customerId = htmlspecialchars((string)$fields['CustomerId'], ENT_XML1);
+        $userName = htmlspecialchars((string)$fields['UserName'], ENT_XML1);
+        $transactionType = htmlspecialchars((string)$fields['TransactionType'], ENT_XML1);
+        $installmentCount = htmlspecialchars((string)$fields['InstallmentCount'], ENT_XML1);
+        $amount = htmlspecialchars((string)$fields['Amount'], ENT_XML1);
+        $merchantOrderId = htmlspecialchars((string)$fields['MerchantOrderId'], ENT_XML1);
+        $transactionSecurity = htmlspecialchars((string)$fields['TransactionSecurity'], ENT_XML1);
+        $md = htmlspecialchars((string)$fields['MD'], ENT_XML1);
+
+        return <<<XML
+<?xml version="1.0" encoding="utf-8"?>
+<KuveytTurkVPosMessage xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <APIVersion>{$apiVersion}</APIVersion>
+  <HashData>{$hashData}</HashData>
+  <MerchantId>{$merchantId}</MerchantId>
+  <CustomerId>{$customerId}</CustomerId>
+  <UserName>{$userName}</UserName>
+  <TransactionType>{$transactionType}</TransactionType>
+  <InstallmentCount>{$installmentCount}</InstallmentCount>
+  <Amount>{$amount}</Amount>
+  <MerchantOrderId>{$merchantOrderId}</MerchantOrderId>
+  <TransactionSecurity>{$transactionSecurity}</TransactionSecurity>
+  <KuveytTurkVPosAdditionalData>
+    <AdditionalData>
+      <Key>MD</Key>
+      <Data>{$md}</Data>
+    </AdditionalData>
+  </KuveytTurkVPosAdditionalData>
+</KuveytTurkVPosMessage>
+XML;
     }
 
     private function fail(string $code, string $raw): array
