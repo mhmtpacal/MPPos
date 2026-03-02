@@ -1,13 +1,14 @@
 # MPPos
 
-MPYazilim coklu banka POS kutuphanesi.
+MPYazilim multi-bank POS kutuphanesi.
 
 Bankalarin `payment`, `cancel`, `refund` ve `partialRefund` islemlerini tek API altinda toplar.
 
-| Banka | Durum                                                            |
-|---|------------------------------------------------------------------|
-| KuveytTurk V2 | 🟢 Payment<br> 🟢 Cancel <br> 🟢 Refund<br/> 🟢 PartialRefund    |
-| ParamPOS | 🟢 Payment<br/> 🟢 Cancel<br/> 🟢 Refund<br/> 🟢 PartialRefund   |
+| Banka | Durum |
+|---|---|
+| KuveytTurk V2 | Active: Payment, Cancel, Refund, PartialRefund |
+| Vakif Katilim | Active: Payment, Cancel, Refund, PartialRefund |
+| ParamPOS | Active: Payment, Cancel, Refund, PartialRefund |
 
 ## Gereksinimler
 
@@ -35,8 +36,6 @@ KuveytTurk tarafinda odeme 2 adimlidir:
 2. callback sonrasinda `completePayment()` ile provizyon alinur
 
 ```php
-use MPPos\MPPos;
-
 $pos = MPPos::kuveytturk()
     ->account([
         'merchant_id' => '...',
@@ -69,11 +68,7 @@ if ($init['ok']) {
 
 ### Payment Callback ve Provizyon
 
-`OkUrl` veya `FailUrl` tarafinda gelen `AuthenticationResponse` ile once cevap dogrulanir, sonra provizyon cekilir.
-
 ```php
-use MPPos\MPPos;
-
 $pos = MPPos::kuveytturk()
     ->account([
         'merchant_id' => '...',
@@ -110,8 +105,7 @@ $pos = MPPos::kuveytturk()
         'ref_ret_num' => '035617458943',
         'auth_code' => '412371',
         'transaction_id' => '458943',
-    ])
-    ->test(true);
+    ]);
 
 $pos->cancel();
 $response = $pos->getResponse();
@@ -134,8 +128,7 @@ $pos = MPPos::kuveytturk()
         'auth_code' => '412371',
         'transaction_id' => '458943',
         'amount' => 149.90,
-    ])
-    ->test(true);
+    ]);
 
 $pos->refund();
 $response = $pos->getResponse();
@@ -158,20 +151,154 @@ $pos = MPPos::kuveytturk()
         'auth_code' => '412371',
         'transaction_id' => '458943',
         'amount' => 50.00,
-    ])
-    ->test(true);
+    ]);
 
 $pos->partialRefund();
 $response = $pos->getResponse();
 ```
+
+## Vakif Katilim
+
+### Payment
+
+Vakif Katilim tarafinda da 3D odeme 2 adimlidir:
+
+1. `payment()` ile bankanin 3D HTML formu alinur
+2. callback sonrasinda `completePayment()` ile provizyon alinur
+
+```php
+$pos = MPPos::vakifkatilim()
+    ->account([
+        'merchant_id' => '...',
+        'customer_id' => '...',
+        'username' => '...',
+        'password' => '...',
+    ])
+    ->payload([
+        'merchantOrderId' => 'ORD-2001',
+        'amount' => 149.90,
+        'card_holder' => 'TEST USER',
+        'card_number' => '5353550000958906',
+        'exp_month' => '01',
+        'exp_year' => '26',
+        'cvv' => '741',
+        'ok_url' => 'https://site.com/vakif-ok',
+        'fail_url' => 'https://site.com/vakif-fail',
+        'client_ip' => '1.2.3.4',
+        'address' => [
+            'Type' => '1',
+            'Name' => 'Test User',
+            'PhoneNumber' => '5555555555',
+            'AddressId' => '1',
+            'Email' => 'user@example.com',
+        ],
+    ])
+    ->test(true);
+
+$init = $pos->payment();
+
+if ($init['ok']) {
+    echo $init['html'];
+}
+```
+
+### Payment Callback ve Provizyon
+
+Vakif Katilim callback tarafinda genelde `ResponseMessage` icinde url-encoded XML doner.
+
+```php
+$pos = MPPos::vakifkatilim()
+    ->account([
+        'merchant_id' => '...',
+        'customer_id' => '...',
+        'username' => '...',
+        'password' => '...',
+    ])
+    ->payload([
+        'ResponseMessage' => $_POST['ResponseMessage'] ?? '',
+        'ResponseCode' => $_POST['ResponseCode'] ?? '',
+        'MerchantOrderId' => $_POST['MerchantOrderId'] ?? '',
+        'OrderId' => $_POST['OrderId'] ?? '',
+        'MD' => $_POST['MD'] ?? '',
+        'HashData' => $_POST['HashData'] ?? '',
+    ])
+    ->test(true);
+
+$auth = $pos->parsePaymentResponse();
+
+if ($auth['ok']) {
+    $pos->completePayment();
+    $response = $pos->getResponse();
+}
+```
+
+### Cancel
+
+```php
+$pos = MPPos::vakifkatilim()
+    ->account([
+        'merchant_id' => '...',
+        'customer_id' => '...',
+        'username' => '...',
+        'password' => '...',
+    ])
+    ->payload([
+        'merchantOrderId' => 'ORD-2001',
+        'remote_order_id' => '15161',
+        'amount' => 149.90,
+    ]);
+
+$pos->cancel();
+$response = $pos->getResponse();
+```
+
+### Refund
+
+```php
+$pos = MPPos::vakifkatilim()
+    ->account([
+        'merchant_id' => '...',
+        'customer_id' => '...',
+        'username' => '...',
+        'password' => '...',
+    ])
+    ->payload([
+        'merchantOrderId' => 'ORD-2001',
+        'remote_order_id' => '15161',
+    ]);
+
+$pos->refund();
+$response = $pos->getResponse();
+```
+
+### PartialRefund
+
+```php
+$pos = MPPos::vakifkatilim()
+    ->account([
+        'merchant_id' => '...',
+        'customer_id' => '...',
+        'username' => '...',
+        'password' => '...',
+    ])
+    ->payload([
+        'merchantOrderId' => 'ORD-2001',
+        'remote_order_id' => '15161',
+        'amount' => 50.00,
+    ]);
+
+$pos->partialRefund();
+$response = $pos->getResponse();
+```
+
+Not: Vakif Katilim test URL'leri dokumanda acik verilmedigi icin gerekirse `account()` icine
+`payment_url`, `provision_url`, `cancel_url`, `refund_url`, `partial_refund_url` override alanlari verilebilir.
 
 ## ParamPOS
 
 ### Payment
 
 ```php
-use MPPos\MPPos;
-
 $pos = MPPos::parampos()
     ->account([
         'client_code' => '...',
@@ -180,7 +307,7 @@ $pos = MPPos::parampos()
         'guid' => '...',
     ])
     ->payload([
-        'order_id' => 'ORD-2001',
+        'order_id' => 'ORD-3001',
         'amount' => 14990,
         'card_holder' => 'TEST USER',
         'card_number' => '4546711234567894',
@@ -224,7 +351,7 @@ $pos = MPPos::parampos()
         'guid' => '...',
     ])
     ->payload([
-        'order_id' => 'ORD-2001',
+        'order_id' => 'ORD-3001',
         'amount' => 14990,
     ]);
 
@@ -243,7 +370,7 @@ $pos = MPPos::parampos()
         'guid' => '...',
     ])
     ->payload([
-        'order_id' => 'ORD-2001',
+        'order_id' => 'ORD-3001',
         'amount' => 14990,
     ]);
 
@@ -262,7 +389,7 @@ $pos = MPPos::parampos()
         'guid' => '...',
     ])
     ->payload([
-        'order_id' => 'ORD-2001',
+        'order_id' => 'ORD-3001',
         'amount' => 5000,
     ]);
 
@@ -274,16 +401,14 @@ $response = $pos->getResponse();
 
 Tum banka islemlerinden sonra sonuc verisi `getResponse()` ile alinabilir.
 
-Ornek:
-
 ```php
 Array
 (
     [ok] => true
     [code] => 00
-    [message] => OTORIZASYON VERILDI
+    [message] => PROVIZYON ALINDI
     [http_code] => 200
     [type] => Sale
-    [provider] => kuveytturk
+    [provider] => vakifkatilim
 )
 ```

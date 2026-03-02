@@ -5,6 +5,7 @@ namespace MPPos;
 
 use MPPos\Banks\KuveytTurk\KuveytTurkAdapter;
 use MPPos\Banks\ParamPos\ParamPosAdapter;
+use MPPos\Banks\VakifKatilim\VakifKatilimAdapter;
 
 final class MPPos
 {
@@ -16,5 +17,10 @@ final class MPPos
     public static function parampos(): ParamPosAdapter
     {
         return new ParamPosAdapter();
+    }
+
+    public static function vakifkatilim(): VakifKatilimAdapter
+    {
+        return new VakifKatilimAdapter();
     }
 }
