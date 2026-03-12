@@ -79,10 +79,12 @@ final class VakifKatilimClient
     {
         $raw = $payload['ResponseMessage'] ?? $payload['response_message'] ?? null;
         if (is_string($raw) && trim($raw) !== '') {
-            $xml = urldecode($raw);
-            $parsed = $this->parseTransactionResponse($xml);
-            if (($parsed['code'] ?? '') !== '') {
-                return $parsed;
+            $decodedRaw = urldecode($raw);
+            if (strpos($decodedRaw, '<') !== false) {
+                $parsed = $this->parseTransactionResponse($decodedRaw);
+                if (($parsed['code'] ?? '') !== '') {
+                    return $parsed;
+                }
             }
         }
 
@@ -125,6 +127,12 @@ final class VakifKatilimClient
     public function buildApiHash(): string
     {
         $data = $this->merchantId . $this->username . $this->buildHashPassword();
+        return $this->computeHash($data);
+    }
+
+    public function buildProvisionHash(string $merchantOrderId, string $amount): string
+    {
+        $data = $this->merchantId . $merchantOrderId . $amount . $this->username . $this->buildHashPassword();
         return $this->computeHash($data);
     }
 
@@ -274,12 +282,26 @@ final class VakifKatilimClient
 
     private function parseTransactionResponse(string $raw): array
     {
+        $trimmedRaw = trim($raw);
+
+        // Vakif Katilim may directly return an auto-submit 3DS HTML page instead of XML.
+        // In that case, pass HTML through as successful init response.
+        if ($this->looksLikeThreeDsHtml($trimmedRaw)) {
+            return [
+                'ok' => true,
+                'code' => '3DS_HTML',
+                'message' => '',
+                'provider' => 'vakifkatilim',
+                'html' => $trimmedRaw,
+            ];
+        }
+
         $xml = $this->extractXml($raw);
         if ($xml === null) {
             return [
                 'ok' => false,
                 'code' => 'NO_XML',
-                'message' => trim($raw),
+                'message' => $trimmedRaw,
                 'provider' => 'vakifkatilim',
             ];
         }
@@ -287,10 +309,17 @@ final class VakifKatilimClient
         libxml_use_internal_errors(true);
         $sx = simplexml_load_string($xml);
         if ($sx === false) {
+            $normalizedXml = preg_replace('/encoding=[\"\']utf-16[\"\']/i', 'encoding="UTF-8"', $xml);
+            if (is_string($normalizedXml) && $normalizedXml !== $xml) {
+                $sx = simplexml_load_string($normalizedXml);
+            }
+        }
+
+        if ($sx === false) {
             return [
                 'ok' => false,
                 'code' => 'INVALID_XML',
-                'message' => trim($raw),
+                'message' => $trimmedRaw,
                 'provider' => 'vakifkatilim',
             ];
         }
@@ -391,5 +420,18 @@ final class VakifKatilimClient
         }
 
         return is_array($current) ? '' : (string)$current;
+    }
+
+    private function looksLikeThreeDsHtml(string $raw): bool
+    {
+        if ($raw === '' || stripos($raw, '<html') === false || stripos($raw, '<form') === false) {
+            return false;
+        }
+
+        return stripos($raw, '3D Secure Processing') !== false
+            || stripos($raw, 'threeDSServerWebFlowStartForm') !== false
+            || stripos($raw, 'name=\'threeDSServerWebFlowStart\'') !== false
+            || stripos($raw, 'name=\"threeDSServerWebFlowStart\"') !== false
+            || stripos($raw, '/tds/resultFlow') !== false;
     }
 }

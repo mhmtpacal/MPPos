@@ -68,8 +68,12 @@ final class VakifKatilimAdapter extends AbstractPos
         }
 
         $data = $this->mapper->provision($this->payload, $auth);
+        $provisionHash = $this->client->buildProvisionHash(
+            (string)$data['MerchantOrderId'],
+            (string)$data['Amount'],
+        );
         $fields = [
-            'HashData' => $this->client->buildApiHash(),
+            'HashData' => $provisionHash,
             'MerchantId' => (string)$this->account['merchant_id'],
             'SubMerchantId' => (string)($this->account['sub_merchant_id'] ?? 0),
             'CustomerId' => (string)$this->account['customer_id'],
