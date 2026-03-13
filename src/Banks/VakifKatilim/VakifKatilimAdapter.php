@@ -90,8 +90,12 @@ final class VakifKatilimAdapter extends AbstractPos
         $this->boot();
 
         $data = $this->mapper->cancel($this->payload);
+        $cancelHash = $this->client->buildProvisionHash(
+            (string)$data['MerchantOrderId'],
+            (string)($data['Amount'] ?? '0'),
+        );
         $fields = [
-            'HashData' => $this->client->buildApiHash(),
+            'HashData' => $cancelHash,
             'MerchantId' => (string)$this->account['merchant_id'],
             'SubMerchantId' => (string)($this->account['sub_merchant_id'] ?? 0),
             'CustomerId' => (string)$this->account['customer_id'],
@@ -108,8 +112,12 @@ final class VakifKatilimAdapter extends AbstractPos
         $this->boot();
 
         $data = $this->mapper->refund($this->payload);
+        $refundHash = $this->client->buildProvisionHash(
+            (string)$data['MerchantOrderId'],
+            (string)($data['Amount'] ?? '0'),
+        );
         $fields = [
-            'HashData' => $this->client->buildApiHash(),
+            'HashData' => $refundHash,
             'MerchantId' => (string)$this->account['merchant_id'],
             'SubMerchantId' => (string)($this->account['sub_merchant_id'] ?? 0),
             'CustomerId' => (string)$this->account['customer_id'],
@@ -126,8 +134,12 @@ final class VakifKatilimAdapter extends AbstractPos
         $this->boot();
 
         $data = $this->mapper->partialRefund($this->payload);
+        $partialRefundHash = $this->client->buildProvisionHash(
+            (string)$data['MerchantOrderId'],
+            (string)($data['Amount'] ?? '0'),
+        );
         $fields = [
-            'HashData' => $this->client->buildApiHash(),
+            'HashData' => $partialRefundHash,
             'MerchantId' => (string)$this->account['merchant_id'],
             'SubMerchantId' => (string)($this->account['sub_merchant_id'] ?? 0),
             'CustomerId' => (string)$this->account['customer_id'],

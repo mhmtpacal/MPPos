@@ -58,10 +58,14 @@ final class VakifKatilimMapper implements PayloadMapperInterface
             }
         }
 
+        $amount = isset($payload['amount']) && $payload['amount'] !== '' && $payload['amount'] !== null
+            ? $this->normalizeAmount($payload['amount'])
+            : '0';
+
         return [
             'MerchantOrderId' => (string)$payload['merchantOrderId'],
             'OrderId' => (string)$payload['remote_order_id'],
-            'Amount' => (string)($payload['amount'] ?? ''),
+            'Amount' => $amount,
             'PaymentType' => (string)($payload['payment_type'] ?? 1),
         ];
     }
@@ -69,7 +73,7 @@ final class VakifKatilimMapper implements PayloadMapperInterface
     public function refund(array $payload): array
     {
         $data = $this->cancel($payload);
-        unset($data['Amount'], $data['PaymentType']);
+        unset($data['PaymentType']);
         return $data;
     }
 
