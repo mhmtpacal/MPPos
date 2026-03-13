@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace MPPos\Banks\KuveytTurk;
 
-use MPPos\Contracts\PosAdapterInterface;
 use MPPos\Core\AbstractPos;
 use MPPos\Core\PosException;
 
@@ -17,13 +16,11 @@ final class KuveytTurkAdapter extends AbstractPos
         $this->mapper = new KuveytTurkMapper();
     }
 
-    // ========= INTERNAL =========
-
     private function boot(): void
     {
-        foreach (['merchant_id', 'customer_id', 'username', 'password'] as $k) {
-            if (empty($this->account[$k])) {
-                throw PosException::missingAccount($k);
+        foreach (['merchant_id', 'customer_id', 'username', 'password'] as $key) {
+            if (empty($this->account[$key])) {
+                throw PosException::missingAccount($key);
             }
         }
 
@@ -41,14 +38,11 @@ final class KuveytTurkAdapter extends AbstractPos
         );
     }
 
-    // ========= ACTIONS =========
-
     public function payment(): array
     {
         $this->boot();
 
         $data = $this->mapper->payment($this->payload);
-
         $hash = $this->client->buildPaymentHash(
             $data['MerchantOrderId'],
             $data['Amount'],
@@ -56,29 +50,59 @@ final class KuveytTurkAdapter extends AbstractPos
             $data['FailUrl'],
         );
 
-        return [
-            'action' => $this->test
-                ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate'
-                : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate',
-            'method' => 'POST',
-            'fields' => [
-                'hidden' => [
-                    'APIVersion' => 'TDV2.0.0',
-                    'MerchantId' => $this->account['merchant_id'],
-                    'CustomerId' => $this->account['customer_id'],
-                    'UserName'   => $this->account['username'],
-                    'HashData'   => $hash,
-                    ...$data,
-                ],
-                'card_fields' => [
-                    'CardNumber',
-                    'CardExpireDateMonth',
-                    'CardExpireDateYear',
-                    'CardCVV2',
-                    'CardHolderName',
-                ],
-            ],
+        $fields = [
+            'MerchantId' => $this->account['merchant_id'],
+            'CustomerId' => $this->account['customer_id'],
+            'UserName' => $this->account['username'],
+            'HashData' => $hash,
+            ...$data,
         ];
+
+        $result = $this->client->init3D($fields, $this->paymentGateUrl());
+
+        return [
+            'ok' => (bool)($result['ok'] ?? false),
+            'http_code' => (int)($result['http_code'] ?? 0),
+            'html' => (string)($result['body'] ?? ''),
+            'error' => (string)($result['error'] ?? ''),
+            'request' => $fields,
+            'provider' => 'kuveytturk',
+            'type' => 'Init3D',
+        ];
+    }
+
+    public function parsePaymentResponse(): array
+    {
+        $this->boot();
+
+        return $this->client->parsePaymentResponse($this->payload);
+    }
+
+    public function completePayment(): void
+    {
+        $this->boot();
+
+        $auth = $this->client->parsePaymentResponse($this->payload);
+        if (!($auth['ok'] ?? false)) {
+            $this->lastResponse = $auth;
+            return;
+        }
+
+        $provisionData = $this->mapper->provision($this->payload, $auth);
+        $hash = $this->client->buildProvisionHash(
+            $provisionData['MerchantOrderId'],
+            $provisionData['Amount'],
+        );
+
+        $this->client->provision([
+            'HashData' => $hash,
+            'MerchantId' => (string)$this->account['merchant_id'],
+            'CustomerId' => (string)$this->account['customer_id'],
+            'UserName' => (string)$this->account['username'],
+            ...$provisionData,
+        ], $this->provisionGateUrl());
+
+        $this->lastResponse = $this->client->getResponse();
     }
 
     public function cancel(): void
@@ -105,12 +129,26 @@ final class KuveytTurkAdapter extends AbstractPos
     public function getResponse(): array
     {
         return $this->lastResponse ?? [
-            'ok'        => false,
-            'code'      => 'NO_REQUEST',
-            'message'   => 'No transaction executed',
+            'ok' => false,
+            'code' => 'NO_REQUEST',
+            'message' => 'No transaction executed',
             'http_code' => 0,
-            'type'      => null,
-            'provider'  => 'kuveytturk',
+            'type' => null,
+            'provider' => 'kuveytturk',
         ];
+    }
+
+    private function paymentGateUrl(): string
+    {
+        return $this->test
+            ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelPayGate'
+            : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelPayGate';
+    }
+
+    private function provisionGateUrl(): string
+    {
+        return $this->test
+            ? 'https://boatest.kuveytturk.com.tr/boa.virtualpos.services/Home/ThreeDModelProvisionGate'
+            : 'https://sanalpos.kuveytturk.com.tr/ServiceGateWay/Home/ThreeDModelProvisionGate';
     }
 }
