@@ -631,7 +631,7 @@ XML;
 
     private function normalizeLegacyRefundAmount(int|float|string $amount): string
     {
-        return (string)((((float)$amount) - 0.01) * 100);
+        return (string)($amount * 100);
     }
 
     private function xmlToArray(SimpleXMLElement $xml): array
